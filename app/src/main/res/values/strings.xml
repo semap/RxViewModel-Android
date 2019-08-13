@@ -1,3 +1,14 @@
 <resources>
-    <string name="app_name">RxViewModel Example</string>
+    <string name="app_name">RxViewModel</string>
+    <!-- Strings related to login -->
+    <string name="prompt_email">Username</string>
+    <string name="prompt_password">Password</string>
+    <string name="action_sign_in">Sign in</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="sign_in_successfully">Sign in success</string>
+    <string name="sign_in_failed">Sign in failed</string>
+    <string name="error_login_failed_title">Login failed</string>
+    <string name="hint_login">Input admin / admin to login successfully</string>
+    <string name="hint_error">Input error / error for exception</string>
+
 </resources>
