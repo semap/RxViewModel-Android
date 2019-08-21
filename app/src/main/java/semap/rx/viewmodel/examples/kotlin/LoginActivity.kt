@@ -52,34 +52,41 @@ class LoginActivity: AppCompatActivity() {
         signInButton.clicks()
                 .map<LoginAction> { Login }
                 .doAfterNext { _ -> this.closeKeyboard()}
-                .asLiveData(viewModel)
+                .asLiveData()
                 .observe(this, viewModel.concurrentActionLiveDataObserver)
 
         usernameView.textChanges()
                 .skipInitialValue()
-                .map<LoginAction> {SetUsername(username = it.toString())}
-                .asLiveData(viewModel)
+                .map { it.toString() }
+                .map<LoginAction> (::SetUsername)
+                .asLiveData()
                 .observe(this, viewModel.concurrentActionLiveDataObserver)
 
         passwordView.textChanges()
                 .skipInitialValue()
-                .map<LoginAction> {SetPassword(it.toString())}
-                .asLiveData(viewModel)
+                .map { it.toString() }
+                .map<LoginAction> (::SetPassword)
+                .asLiveData()
                 .observe(this, viewModel.concurrentActionLiveDataObserver)
 
     }
 
     private fun bindViewModelToView() {
-        viewModel.toNonNullLiveData(viewModel.isLoadingObservable)
-                .observe(this, this::showProgress)
 
-        viewModel.toNonNullLiveData(viewModel.isFormValidObservable)
-                .observe(this)  { signInButton.setEnabled(it) }
+        viewModel.isLoadingObservable
+                .asLiveData(viewModel)
+                .observe(this, ::showProgress)
 
-        viewModel.toNonNullLiveData(viewModel.errorObservable)
-                .observe(this, this::showError)
+        viewModel.isFormValidObservable
+                .asLiveData(viewModel)
+                .observe(this, signInButton::setEnabled)
 
-        viewModel.toNonNullLiveData(viewModel.loginActionObservable)
+        viewModel.errorObservable
+                .asLiveData(viewModel)
+                .observe(this, ::showError)
+
+        viewModel.loginActionObservable
+                .asLiveData(viewModel)
                 .observe(this) { showLoginStatus()}
     }
 

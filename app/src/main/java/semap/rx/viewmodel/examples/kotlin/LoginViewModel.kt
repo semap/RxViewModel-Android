@@ -41,9 +41,8 @@ class LoginViewModel(val loginService: LoginService = LoginService()): RxViewMod
 
     val loginActionObservable: Observable<Unit>
         get() = actionAndStateObservable
-                // ans means actionAndState (it is a pair, first is action, second is state)
-                .filter { it.first is Login }
-                .map { ans -> ans.second }
+                .filter { it.action is Login }
+                .map { ans -> ans.state }
                 .map { Unit }
 
 }

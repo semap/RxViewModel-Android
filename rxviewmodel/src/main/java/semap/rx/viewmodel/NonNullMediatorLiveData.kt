@@ -24,4 +24,14 @@ fun <A, S, T> RxViewModel<A, S>.toNonNullLiveData(observable: Observable<T>): No
     return this.toLiveData(observable).nonNull();
 }
 
-fun <T> Observable<T>.asLiveData(viewModel: RxViewModel<*,*>): NonNullMediatorLiveData<T> = viewModel.toLiveData(this).nonNull<T>()
+// create a LiveData and ignore errors
+fun <T> Observable<T>.asLiveData(): NonNullMediatorLiveData<T> =
+    RxLiveData<T>(this.onErrorResumeNext(Observable.empty()))
+            .nonNull<T>()
+
+fun <T> Observable<T>.asLiveData(errorHandler: RxViewModel<*,*>): NonNullMediatorLiveData<T> = errorHandler.toLiveData(this).nonNull<T>()
+
+fun <T, R> Observable<T>.skipNull(mapper: (t: T) -> R?): Observable<R> {
+    return this.map { Optional<R>(mapper.invoke(it))  }
+            .flatMap { if (it.isEmpty) Observable.empty() else Observable.just(it.get()) }
+}
