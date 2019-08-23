@@ -27,10 +27,10 @@ public abstract class RxViewModel<A, S> extends ViewModel {
      */
     private S currentState;
     private Observable<S> stateObservable;
-    private Observable<Pair<A, S>> actionAndStateObservable;
-    private Observable<Pair<A, S>> nextActionAndStateObservable;  // similar to actionAndStateObservable, but it does NOT replay
+    private Observable<ActionAndState<A, S>> actionAndStateObservable;
+    private Observable<ActionAndState<A, S>> nextActionAndStateObservable;  // similar to actionAndStateObservable, but it does NOT replay
     private Observable<Throwable> errorObservable;
-    private Observable<Pair<A, Throwable>> actionAndErrorObservable;
+    private Observable<ActionAndError<A>> actionAndErrorObservable;
     private Observable<Boolean> loadingObservable;
 
     /**
@@ -43,7 +43,7 @@ public abstract class RxViewModel<A, S> extends ViewModel {
     /**
      * Internal data
      */
-    protected PublishSubject<Pair<A, Throwable>> errorSubject = PublishSubject.create();
+    protected PublishSubject<ActionAndError<A>> errorSubject = PublishSubject.create();
     private ReplaySubject<Integer> loadingCount = ReplaySubject.create();
 
     public RxViewModel() {
@@ -62,21 +62,20 @@ public abstract class RxViewModel<A, S> extends ViewModel {
 
         nextActionAndStateObservable = Observable.merge(sequential, concurrent, flatMapLatest)
                 .observeOn(Schedulers.single())     // use trampoline to avoid race condition
-                .map(anm -> {
+                .flatMap(anm -> {
                     A action  = anm.first;
                     StateMapper<S> mapper = anm.second;
                     try {
                         S newState = mapper.map(currentState);
                         currentState = newState;
-                        return new Pair<A, S>(action, newState);
+                        return Observable.just(new ActionAndState<A, S>(action, newState));
                     } catch (Throwable throwable) {
                         if (!handleError(action, throwable)) {
-                            errorSubject.onNext(new Pair<>(action, throwable));
+                            errorSubject.onNext(new ActionAndError<>(action, throwable));
                         }
-                        return new Pair<>((A)null, (S)null);
+                        return Observable.empty();
                     }
                 })
-                .filter(ans -> ans.first != null && ans.second != null)
                 .observeOn(defaultScheduler())
                 .share();
 
@@ -87,7 +86,7 @@ public abstract class RxViewModel<A, S> extends ViewModel {
         currentState = createInitialState();
 
         stateObservable = actionAndStateObservable
-                .map(ans -> ans.second)
+                .map(ActionAndState::getState)
                 .startWith(Observable.fromCallable(() -> getCurrentState()))
                 .replay(1)
                 .autoConnect();
@@ -102,7 +101,7 @@ public abstract class RxViewModel<A, S> extends ViewModel {
         actionAndErrorObservable = errorSubject.hide();
 
         errorObservable = actionAndErrorObservable
-                .map(event -> event.second);
+                .map(event -> event.getError());
 
     }
 
@@ -130,7 +129,7 @@ public abstract class RxViewModel<A, S> extends ViewModel {
                 })
                 .onErrorResumeNext(throwable -> {
                     if (!handleError(action, throwable)) {
-                        errorSubject.onNext(new Pair<>(action, throwable));
+                        errorSubject.onNext(new ActionAndError<>(action, throwable));
                     }
                     return Observable.empty();
                 });
@@ -171,7 +170,7 @@ public abstract class RxViewModel<A, S> extends ViewModel {
         Observable<T> observableWithoutError = observable
                 .onErrorResumeNext(error -> {
                     if (!handleError(null, error)) {
-                        errorSubject.onNext(new Pair<>(null, error));
+                        errorSubject.onNext(new ActionAndError<>(null, error));
                     }
                     return Observable.empty();
                 });
@@ -242,15 +241,15 @@ public abstract class RxViewModel<A, S> extends ViewModel {
         return stateObservable;
     }
 
-    public Observable<Pair<A, S>> getActionAndStateObservable() {
+    public Observable<ActionAndState<A, S>> getActionAndStateObservable() {
         return getActionAndStateObservable(true);
     }
 
-    public Observable<Pair<A, S>> getActionAndStateObservable(boolean skipCurrentValue) {
+    public Observable<ActionAndState<A, S>> getActionAndStateObservable(boolean skipCurrentValue) {
         return skipCurrentValue ? nextActionAndStateObservable : actionAndStateObservable;
     }
 
-    public Observable<Pair<A, Throwable>> getActionAndErrorObservable() {
+    public Observable<ActionAndError<A>> getActionAndErrorObservable() {
         return actionAndErrorObservable;
     }
 
