@@ -51,32 +51,17 @@ public abstract class RxViewModel<A, S> extends ViewModel {
     }
 
     private void setupRx() {
-        Observable<Pair<A, StateMapper<S>>> sequential = sequentialActionSubject
+        Observable<ActionAndState<A, S>> sequential = sequentialActionSubject
                 .concatMap(this::executeAndCombine);
 
-        Observable<Pair<A, StateMapper<S>>> concurrent = concurrentActionSubject
+        Observable<ActionAndState<A, S>> concurrent = concurrentActionSubject
                 .flatMap(this::executeAndCombine);
 
-        Observable<Pair<A, StateMapper<S>>> flatMapLatest = switchMapLatestActionSubject
+        Observable<ActionAndState<A, S>> flatMapLatest = switchMapLatestActionSubject
                 .switchMap(this::executeAndCombine);
 
-        nextActionAndStateObservable = Observable.merge(sequential, concurrent, flatMapLatest)
-                .observeOn(Schedulers.single())     // use trampoline to avoid race condition
-                .flatMap(anm -> {
-                    A action  = anm.first;
-                    StateMapper<S> mapper = anm.second;
-                    try {
-                        S newState = mapper.map(currentState);
-                        currentState = newState;
-                        return Observable.just(new ActionAndState<A, S>(action, newState));
-                    } catch (Throwable throwable) {
-                        if (!handleError(action, throwable)) {
-                            errorSubject.onNext(new ActionAndError<>(action, throwable));
-                        }
-                        return Observable.empty();
-                    }
-                })
-                .observeOn(defaultScheduler())
+        nextActionAndStateObservable = Observable
+                .merge(sequential, concurrent, flatMapLatest)
                 .share();
 
         actionAndStateObservable = nextActionAndStateObservable
@@ -105,8 +90,28 @@ public abstract class RxViewModel<A, S> extends ViewModel {
 
     }
 
-    private Observable<Pair<A, StateMapper<S>>> executeAndCombine(@NonNull A action) {
-        Observable<StateMapper<S>> nonMapperObservable = Observable.just(action)
+    private Observable<ActionAndState<A, S>> executeAndCombine(@NonNull A action) {
+
+        return Observable
+                .combineLatest(Observable.just(action), toStateMapperObservable(action), (a, m) -> new Pair<>(a, m))
+                .observeOn(Schedulers.single())     // use Schedulers.single() to avoid race condition
+                .flatMap(this::toActionAndStateObservable)
+                .observeOn(defaultScheduler())
+                .doOnSubscribe(__ -> {
+                    if (showSpinner(action)) {
+                        loadingCount.onNext(1);
+                    }
+                })
+                .doFinally(() -> {
+                    if (showSpinner(action)) {
+                        loadingCount.onNext(-1);
+                    }
+                })
+                .subscribeOn(defaultScheduler());
+    }
+
+    private Observable<StateMapper<S>> toStateMapperObservable(@NonNull A action) {
+        return Observable.just(action)
                 .flatMap(a -> {
                     Observable<StateMapper<S>> stateMapperObservable = createObservable(a);
                     if (stateMapperObservable == null) {
@@ -114,18 +119,7 @@ public abstract class RxViewModel<A, S> extends ViewModel {
                     }
 
                     return stateMapperObservable
-                            .defaultIfEmpty(s -> s)
-                            .doOnSubscribe(__ -> {
-                                if (showSpinner(a)) {
-                                    loadingCount.onNext(1);
-                                }
-                            })
-                            .doFinally(() -> {
-                                if (showSpinner(a)) {
-                                    loadingCount.onNext(-1);
-                                }
-                            })
-                            .subscribeOn(defaultScheduler());
+                            .defaultIfEmpty(s -> s);
                 })
                 .onErrorResumeNext(throwable -> {
                     if (!handleError(action, throwable)) {
@@ -133,9 +127,21 @@ public abstract class RxViewModel<A, S> extends ViewModel {
                     }
                     return Observable.empty();
                 });
+    }
 
-        return Observable
-                .combineLatest(Observable.just(action), nonMapperObservable, (a, m) -> new Pair(a, m));
+    private Observable<ActionAndState<A, S>> toActionAndStateObservable(Pair<A, StateMapper<S>> anm) {
+        A act = anm.first;
+        StateMapper<S> mapper = anm.second;
+        try {
+            S newState = mapper.map(currentState);
+            currentState = newState;
+            return Observable.just(new ActionAndState<>(act, newState));
+        } catch (Throwable throwable) {
+            if (!handleError(act, throwable)) {
+                errorSubject.onNext(new ActionAndError<>(act, throwable));
+            }
+            return Observable.empty();
+        }
     }
 
     /**
