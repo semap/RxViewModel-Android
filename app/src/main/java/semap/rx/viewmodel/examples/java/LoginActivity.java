@@ -39,9 +39,9 @@ public class LoginActivity extends AppCompatActivity {
 
         usernameView = (EditText) findViewById(R.id.email);
         passwordView = (EditText) findViewById(R.id.password);
-        signInButton = (Button) findViewById(R.id.email_sign_in_button);
-        loginFormView = findViewById(R.id.login_form);
-        progressView = findViewById(R.id.login_progress);
+        signInButton = (Button) findViewById(R.id.signInButton);
+        loginFormView = findViewById(R.id.loginForm);
+        progressView = findViewById(R.id.loginProgress);
 
         viewModel = ViewModelProviders.of(this).get(LoginViewModel.class);
 
