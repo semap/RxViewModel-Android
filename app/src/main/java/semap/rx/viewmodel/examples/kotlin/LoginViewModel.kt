@@ -18,7 +18,7 @@ class LoginViewModel(val loginService: LoginService = LoginService()): RxViewMod
                     .map { it.password }
                     .map { password -> StateMapper<LoginState> { it.copy(password = password) } }
 
-            is Login -> Observable.fromCallable { getCurrentState() }
+            is Login -> Observable.fromCallable { currentState }
                     .flatMap{ loginService.loginToServer(it.username, it.password) }
                     .map { _ -> StateMapper<LoginState> { it }}
         }
@@ -42,7 +42,6 @@ class LoginViewModel(val loginService: LoginService = LoginService()): RxViewMod
     val loginActionObservable: Observable<Unit>
         get() = actionAndStateObservable
                 .filter { it.action is Login }
-                .map { ans -> ans.state }
                 .map { Unit }
 
 }

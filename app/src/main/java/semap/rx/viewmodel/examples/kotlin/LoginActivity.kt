@@ -37,7 +37,7 @@ class LoginActivity: AppCompatActivity() {
 
         signInButton.clicks()
                 .map<LoginAction> { Login }
-                .doAfterNext { _ -> this.closeKeyboard()}
+                .doAfterNext { this.closeKeyboard() }
                 .asLiveData()
                 .observe(this, viewModel.concurrentActionLiveDataObserver)
 
@@ -73,7 +73,7 @@ class LoginActivity: AppCompatActivity() {
 
         viewModel.loginActionObservable
                 .asLiveData(viewModel)
-                .observe(this) { showLoginStatus()}
+                .observe(this) { showLoginStatus() }
     }
 
     private fun showProgress(show: Boolean) {
