@@ -36,24 +36,24 @@ class LoginActivity: AppCompatActivity() {
     private fun bindViewToViewModel() {
 
         signInButton.clicks()
-                .map<LoginAction> { Login }
+                .map { Login }
                 .doAfterNext { this.closeKeyboard() }
-                .asLiveData()
-                .observe(this, viewModel.concurrentActionLiveDataObserver)
+                .asLiveData(viewModel)
+                .observe(this, viewModel::executeAction)
 
         email.textChanges()
                 .skipInitialValue()
                 .map { it.toString() }
-                .map<LoginAction> (::SetUsername)
-                .asLiveData()
-                .observe(this, viewModel.concurrentActionLiveDataObserver)
+                .map(::SetUsername)
+                .asLiveData(viewModel)
+                .observe(this, viewModel::executeAction)
 
         password.textChanges()
                 .skipInitialValue()
                 .map { it.toString() }
-                .map<LoginAction> (::SetPassword)
-                .asLiveData()
-                .observe(this, viewModel.concurrentActionLiveDataObserver)
+                .map (::SetPassword)
+                .asLiveData(viewModel)
+                .observe(this, viewModel::executeAction)
 
     }
 

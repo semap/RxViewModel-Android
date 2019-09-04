@@ -10,17 +10,17 @@ class LoginViewModel(val loginService: LoginService = LoginService()): RxViewMod
 
     override fun createObservable(action: LoginAction): Observable<StateMapper<LoginState>>? {
         return when (action) {
-            is SetUsername -> Observable.just(action)
-                    .map { it.username }
-                    .map { username -> StateMapper<LoginState> { it.copy(username = username) } }
+        is SetUsername -> Observable.just(action)
+                .map { it.username }
+                .map { username -> StateMapper<LoginState> { it.copy(username = username) } }
 
-            is SetPassword -> Observable.just(action)
-                    .map { it.password }
-                    .map { password -> StateMapper<LoginState> { it.copy(password = password) } }
+        is SetPassword -> Observable.just(action)
+                .map { it.password }
+                .map { password -> StateMapper<LoginState> { it.copy(password = password) } }
 
-            is Login -> Observable.fromCallable { currentState }
-                    .flatMap{ loginService.loginToServer(it.username, it.password) }
-                    .map { _ -> StateMapper<LoginState> { it }}
+        is Login -> Observable.fromCallable { currentState }
+                .flatMap{ loginService.loginToServer(it.username, it.password) }
+                .map { _ -> StateMapper<LoginState> { it }}
         }
     }
 
@@ -32,7 +32,7 @@ class LoginViewModel(val loginService: LoginService = LoginService()): RxViewMod
     }
 
     override fun createInitialState(): LoginState =
-            LoginState("", "")
+            LoginState(username = "", password = "")
 
     val isFormValidObservable: Observable<Boolean>
         get() = stateObservable

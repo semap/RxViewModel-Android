@@ -5,5 +5,5 @@ data class LoginState(
         val password: String) {
 
     val isFormValid: Boolean
-        get() = username.length >= 5 && password.length >= 3
+        get() = username.length > 4 && password.length > 2
 }
