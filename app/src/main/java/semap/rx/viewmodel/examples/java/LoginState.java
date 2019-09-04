@@ -28,8 +28,8 @@ public class LoginState implements Cloneable {
     }
 
     public boolean isFormValid() {
-        return username != null && username.length() >= 5 &&
-            password != null && password.length() >= 3;
+        return username != null && username.length() > 4 &&
+            password != null && password.length() > 2;
     }
 
     @Override

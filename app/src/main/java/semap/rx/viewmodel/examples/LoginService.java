@@ -15,16 +15,18 @@ public class LoginService {
     // returns an observable of token
     public Observable<String> loginToServer(String username, String password) {
 
-        if ("admin".equals(username) && "admin".equals(password)) {
-            return Observable.just("mock_token")  // mock token
-                    .delay(3, TimeUnit.SECONDS);  // delay 3 secs to make it like a real API call
-        } else if ("error".equals(username) && "error".equals(password)) {
+        if ("error".equals(username) && "error".equals(password)) {
             // exception happens in a unexpected place
             throw new RuntimeException("Something unexpected came up");
-
-        } else {
-            // The API returns an exception
-            return Observable.error(new LoginException("Wrong username password"));
         }
+
+        return Observable.just("mock_token")
+                .delay(3, TimeUnit.SECONDS)  // delay 3 secs to make it like a real API call
+                .doOnNext(__ -> {
+                   if (!"admin".equals(username) || !"admin".equals(password)) {
+                       throw new LoginException("Wrong username password");
+                   }
+                });
+
     }
 }
