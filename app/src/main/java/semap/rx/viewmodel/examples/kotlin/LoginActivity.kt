@@ -38,47 +38,44 @@ class LoginActivity: AppCompatActivity() {
         signInButton.clicks()
                 .map { Login }
                 .doAfterNext { this.closeKeyboard() }
-                .asLiveData(viewModel)
+                .asLiveData()
                 .observe(this, viewModel::executeAction)
 
         email.textChanges()
                 .skipInitialValue()
                 .map { it.toString() }
                 .map(::SetUsername)
-                .asLiveData(viewModel)
+                .asLiveData()
                 .observe(this, viewModel::executeAction)
 
         password.textChanges()
                 .skipInitialValue()
                 .map { it.toString() }
                 .map (::SetPassword)
-                .asLiveData(viewModel)
+                .asLiveData()
                 .observe(this, viewModel::executeAction)
 
     }
 
     private fun bindViewModelToView() {
 
-        viewModel.isLoadingObservable
-                .asLiveData(viewModel)
+        viewModel.isLoading
                 .observe(this, ::showProgress)
 
-        viewModel.isFormValidObservable
-                .asLiveData(viewModel)
+        viewModel.isFormValid
                 .observe(this, signInButton::setEnabled)
 
         viewModel.errorObservable
                 .asLiveData(viewModel)
                 .observe(this, ::showError)
 
-        viewModel.loginActionObservable
-                .asLiveData(viewModel)
+        viewModel.loginAction
                 .observe(this) { showLoginStatus() }
     }
 
     private fun showProgress(show: Boolean) {
-        loginProgress.setVisibility(if (show) View.VISIBLE else View.GONE)
-        loginForm.setVisibility(if (show) View.GONE else View.VISIBLE)
+        loginProgress.visibility = if (show) View.VISIBLE else View.GONE
+        loginForm.visibility = if (show) View.GONE else View.VISIBLE
     }
 
     private fun showLoginStatus() {
@@ -95,7 +92,7 @@ class LoginActivity: AppCompatActivity() {
                 .show()
     }
 
-    protected fun closeKeyboard() {
+    private fun closeKeyboard() {
         val view = this.currentFocus
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager?
         if (view != null && imm != null) {
