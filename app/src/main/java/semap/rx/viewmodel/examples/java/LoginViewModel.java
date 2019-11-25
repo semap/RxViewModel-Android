@@ -17,7 +17,7 @@ public class LoginViewModel extends RxViewModel<LoginAction, LoginState> {
     }
 
     @Override
-    protected Observable<StateMapper<LoginState>> createObservable(LoginAction action) {
+    public Observable<StateMapper<LoginState>> createObservable(LoginAction action) {
         switch (action.getType()) {
             case SET_USERNAME:
                 return Observable.just(action)
@@ -36,7 +36,7 @@ public class LoginViewModel extends RxViewModel<LoginAction, LoginState> {
     }
 
     @Override
-    protected boolean showSpinner(LoginAction action) {
+    public boolean showSpinner(LoginAction action) {
         switch (action.getType()) {
             case LOGIN:
                 return true;

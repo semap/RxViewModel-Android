@@ -3,7 +3,6 @@ package semap.rx.viewmodel.examples.kotlin
 import io.reactivex.Observable
 import semap.rx.viewmodel.RxViewModel
 import semap.rx.viewmodel.StateMapper
-import semap.rx.viewmodel.asLiveData
 import semap.rx.viewmodel.examples.LoginService
 import semap.rx.viewmodel.examples.kotlin.LoginAction.*
 
@@ -12,18 +11,17 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
     // *** Begin of LiveData ***
     val isFormValid by lazy {
         isFormValidObservable
-                .asLiveData(this)
-    }
-
-    val loginAction by lazy {
-        loginActionObservable
-                .asLiveData(this)
+                .asLiveData()
     }
 
     val isLoading by lazy {
-        isLoadingObservable
-                .asLiveData(this)
+        loadingObservable
+                .asLiveData()
     }
+
+    val loginAction
+        get() = getActionObservable(Login::class.java)
+                .asLiveData()
 
     // *** End of LiveData ***
 
@@ -58,8 +56,4 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
                 .map { it.isFormValid }
                 .distinctUntilChanged()
 
-    private val loginActionObservable: Observable<Unit>
-        get() = actionAndStateObservable
-                .filter { it.action is Login }
-                .map { Unit }
 }

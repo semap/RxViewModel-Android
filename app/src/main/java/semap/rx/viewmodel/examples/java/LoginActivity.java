@@ -4,11 +4,11 @@ import static semap.rx.viewmodel.examples.java.LoginAction.LOGIN;
 import static semap.rx.viewmodel.examples.java.LoginAction.SET_PASSWORD;
 import static semap.rx.viewmodel.examples.java.LoginAction.SET_USERNAME;
 
-import android.arch.lifecycle.ViewModelProviders;
+import androidx.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.os.Bundle;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
 import android.text.Editable;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;

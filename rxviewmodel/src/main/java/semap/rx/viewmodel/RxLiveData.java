@@ -1,13 +1,14 @@
 package semap.rx.viewmodel;
 
-import android.arch.lifecycle.LifecycleOwner;
-import android.arch.lifecycle.MutableLiveData;
-import android.arch.lifecycle.Observer;
-import android.support.annotation.NonNull;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
+import androidx.annotation.NonNull;
 
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.observers.TestObserver;
 
 public class RxLiveData<T> extends MutableLiveData<T> {
 
@@ -19,7 +20,7 @@ public class RxLiveData<T> extends MutableLiveData<T> {
     }
 
     @Override
-    public void removeObserver(@NonNull final Observer<T> observer) {
+    public void removeObserver(@NonNull Observer<? super T> observer) {
         super.removeObserver(observer);
         // dispose the subscription if there is no observers (including active and in-active)
         // there is no race condition here, because it is running in the MainThread
@@ -32,7 +33,7 @@ public class RxLiveData<T> extends MutableLiveData<T> {
     }
 
     @Override
-    public void observe(@NonNull LifecycleOwner owner, @NonNull Observer<T> observer) {
+    public void observe(@NonNull LifecycleOwner owner, @NonNull Observer<? super T> observer) {
         boolean hasObservables = this.hasObservers();
         super.observe(owner, observer);
 
@@ -43,7 +44,7 @@ public class RxLiveData<T> extends MutableLiveData<T> {
     }
 
     @Override
-    public void observeForever(@NonNull Observer<T> observer) {
+    public void observeForever(@NonNull Observer<? super T> observer) {
         boolean hasObservables = this.hasObservers();
         super.observeForever(observer);
         if (!hasObservables) {
@@ -54,7 +55,11 @@ public class RxLiveData<T> extends MutableLiveData<T> {
 
     private void subscribeToObservable() {
         disposable = observable
-                .subscribe(value -> postValue(value));
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(value -> setValue(value));
     }
 
+    public TestObserver<T> test() {
+        return observable.test();
+    }
 }
