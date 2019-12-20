@@ -41,6 +41,11 @@ abstract class RxViewModel<A, S>: ViewModel() {
     val actionAndStateObservable: Observable<ActionAndState<A, S>>
 
     /**
+     * Observable of ActionAndState, it does NOT replay
+     */
+    val actionCompleteObservable: Observable<ActionAndState<A, S>>
+
+    /**
      * Observable of Error, it does NOT replay
      */
     val errorObservable: Observable<Throwable>
@@ -63,6 +68,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
     private val stateBehaviorSubject = BehaviorSubject.create<S>()
     private val errorSubject = PublishSubject.create<ActionAndError<A>>()
     private val loadingCount = ReplaySubject.create<Int>()
+    private val actionComplete = PublishSubject.create<ActionAndState<A, S>>()
 
     init {
 
@@ -95,6 +101,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
 
         errorObservable = actionAndErrorObservable
                 .map { (_, error) -> error }
+
+        actionCompleteObservable = actionComplete.hide()
     }
 
     /**
@@ -227,6 +235,18 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .skipNull { mapper.invoke(it.state) }
     }
 
+    fun <T: A> getActionCompleteObservable(clazz: Class<T>): Observable<T> {
+        return actionCompleteObservable
+                .map { it.action }
+                .ofType(clazz)
+    }
+
+    fun <T: A, R> getActionCompleteObservable(clazz: Class<T>, mapper: (S) -> R?): Observable<R> {
+        return actionCompleteObservable
+                .filter { clazz.isInstance(it.action) }
+                .skipNull { mapper.invoke(it.state) }
+    }
+
     // A util method to skip the null values.
     protected fun <T> skipNull(obj: T?): Observable<T> {
         return if (obj == null) {
@@ -274,11 +294,13 @@ abstract class RxViewModel<A, S>: ViewModel() {
 
     private fun executeAndCombine(action: A): Observable<ActionAndState<A, S>> {
         return Observable.combineLatest(Observable.just(action),
-                toStateMapperObservable(action),
-                BiFunction<A, StateMapper<S>,
-                        Pair<A, StateMapper<S>>> { a, m -> Pair(a, m) })
+                    toStateMapperObservable(action),
+                    BiFunction<A, StateMapper<S>, Pair<A, StateMapper<S>>> { a, m -> Pair(a, m) })
                 .observeOn(Schedulers.single())     // use Schedulers.single() to avoid race condition
                 .flatMap(this::toActionAndStateObservable)
+                .doOnComplete {
+                    actionComplete.onNext(ActionAndState(action, currentState))
+                }
                 .doOnSubscribe {
                     if (showSpinner(action)) {
                         loadingCount.onNext(1)
