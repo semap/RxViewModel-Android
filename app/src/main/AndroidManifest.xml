@@ -10,7 +10,6 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity android:name=".viewmodel.examples.java.LoginActivity">
-
         </activity>
 
         <activity android:name=".viewmodel.examples.kotlin.LoginActivity">

@@ -1,10 +1,10 @@
 package semap.rx.viewmodel.examples.kotlin
 
-import android.arch.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider
 import android.content.Context
 import android.os.Bundle
-import android.support.v7.app.AlertDialog
-import android.support.v7.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
@@ -38,21 +38,21 @@ class LoginActivity: AppCompatActivity() {
         signInButton.clicks()
                 .map { Login }
                 .doAfterNext { this.closeKeyboard() }
-                .asLiveData()
+                .asLiveData(viewModel)
                 .observe(this, viewModel::executeAction)
 
         email.textChanges()
                 .skipInitialValue()
                 .map { it.toString() }
                 .map(::SetUsername)
-                .asLiveData()
+                .asLiveData(viewModel)
                 .observe(this, viewModel::executeAction)
 
         password.textChanges()
                 .skipInitialValue()
                 .map { it.toString() }
                 .map (::SetPassword)
-                .asLiveData()
+                .asLiveData(viewModel)
                 .observe(this, viewModel::executeAction)
 
     }
