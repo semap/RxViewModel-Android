@@ -12,6 +12,7 @@ import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.ReplaySubject
+import io.reactivex.subjects.Subject
 
 abstract class RxViewModel<A, S>: ViewModel() {
 
@@ -58,16 +59,16 @@ abstract class RxViewModel<A, S>: ViewModel() {
     /**
      * The inputs (the publishEvent subjects that accepts actions) of the RxViewModel
      */
-    private val concurrentActionSubject = PublishSubject.create<A>()
-    private val sequentialActionSubject = PublishSubject.create<A>()
-    private val switchMapLatestActionSubject = PublishSubject.create<A>()
+    private val concurrentActionSubject = PublishSubject.create<A>().toSerialized()
+    private val sequentialActionSubject = PublishSubject.create<A>().toSerialized()
+    private val switchMapLatestActionSubject = PublishSubject.create<A>().toSerialized()
 
     /**
      * Internal data
      */
     private val stateBehaviorSubject = BehaviorSubject.create<S>()
-    private val errorSubject = PublishSubject.create<ActionAndError<A>>()
-    private val loadingCount = ReplaySubject.create<Int>()
+    private val errorSubject = PublishSubject.create<ActionAndError<A>>().toSerialized()
+    private val loadingCount = ReplaySubject.create<Int>().toSerialized()
     private val actionComplete = PublishSubject.create<ActionAndState<A, S>>()
 
     init {
@@ -285,14 +286,14 @@ abstract class RxViewModel<A, S>: ViewModel() {
         loadingCount.onNext(-1)
     }
 
-    private fun execute(action: A, publishSubject: PublishSubject<A>) {
-        if (!publishSubject.hasObservers()) {
+    private fun execute(action: A, subject: Subject<A>) {
+        if (!subject.hasObservers()) {
             // TODO: Log
         }
-        publishSubject.onNext(action)
+        subject.onNext(action)
     }
 
-    private fun executeAndCombine(action: A): Observable<ActionAndState<A, S>> {
+    private final fun executeAndCombine(action: A): Observable<ActionAndState<A, S>> {
         return Observable.combineLatest(Observable.just(action),
                     toStateMapperObservable(action),
                     BiFunction<A, StateMapper<S>, Pair<A, StateMapper<S>>> { a, m -> Pair(a, m) })
