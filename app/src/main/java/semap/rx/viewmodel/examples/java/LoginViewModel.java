@@ -57,7 +57,7 @@ public class LoginViewModel extends RxViewModel<LoginAction, LoginState> {
     }
 
     public Observable<LoginState> getLoginActionObservable() {
-        return getActionAndStateObservable()
+        return getActionOnNextObservable()
                 .filter(ans -> ans.getAction().getType() == LOGIN)
                 .map(ans -> ans.getState());
     }

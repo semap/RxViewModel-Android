@@ -20,7 +20,7 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
     }
 
     val loginAction
-        get() = getActionCompleteObservable(Login::class.java)
+        get() = actionOnCompleteObservable(Login::class.java)
                 .asLiveData()
 
     // *** End of LiveData ***
