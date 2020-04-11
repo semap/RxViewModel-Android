@@ -60,7 +60,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * The inputs (the publishEvent subjects that accepts actions) of the RxViewModel
      */
     private val concurrentActionSubject = PublishSubject.create<A>().toSerialized()
-    private val sequentialActionSubject = PublishSubject.create<A>().toSerialized()
+    private val sequentialActionSubject = PublishSubject.create<List<A>>().toSerialized()
     private val switchMapLatestActionSubject = PublishSubject.create<A>().toSerialized()
 
     /**
@@ -72,12 +72,16 @@ abstract class RxViewModel<A, S>: ViewModel() {
     private val actionComplete = PublishSubject.create<ActionAndState<A, S>>()
 
     init {
-
-        val sequential = sequentialActionSubject.concatMap(this::executeAndCombine)
-
-        val concurrent = concurrentActionSubject.flatMap(this::executeAndCombine)
-
-        val flatMapLatest = switchMapLatestActionSubject.switchMap(this::executeAndCombine)
+        val sequential = sequentialActionSubject
+                .flatMap { list ->
+                    Observable.fromIterable(list)
+                        .concatMap { executeAndCombine(it, false) }
+                        .onErrorResumeNext { _: Throwable ->
+                            Observable.empty<ActionAndState<A, S>>()
+                        }
+                }
+        val concurrent = concurrentActionSubject.flatMap { executeAndCombine(it) }
+        val flatMapLatest = switchMapLatestActionSubject.switchMap { executeAndCombine(it) }
 
         actionAndStateObservable = Observable
                 .merge(sequential, concurrent, flatMapLatest)
@@ -171,9 +175,21 @@ abstract class RxViewModel<A, S>: ViewModel() {
      */
     fun executeActionInSequence(action: A) {
         if (!concurrentActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(action, sequentialActionSubject) }
+            Handler(Looper.getMainLooper()).post { execute(listOf(action), sequentialActionSubject) }
         } else {
-            sequentialActionSubject.onNext(action)
+            sequentialActionSubject.onNext(listOf(action))
+        }
+    }
+
+    /**
+     * Execute the action in sequence. The View classes create Actions and call this method to run them in sequence.
+     * @param action
+     */
+    fun executeActionInSequence(actions: List<A>) {
+        if (!concurrentActionSubject.hasObservers()) {
+            Handler(Looper.getMainLooper()).post { execute(actions, sequentialActionSubject) }
+        } else {
+            sequentialActionSubject.onNext(actions)
         }
     }
 
@@ -196,7 +212,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return concurrentActionSubject
     }
 
-    fun getSequentialActionObserver(): Observer<A> {
+    fun getSequentialActionObserver(): Observer<List<A>> {
         return sequentialActionSubject
     }
 
@@ -209,7 +225,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
     }
 
     fun getSequentialActionLiveDataObserver(): androidx.lifecycle.Observer<A> {
-        return androidx.lifecycle.Observer { sequentialActionSubject.onNext(it) }
+        return androidx.lifecycle.Observer { sequentialActionSubject.onNext(listOf(it)) }
     }
 
     fun getSwitchActionLiveDataObserver(): androidx.lifecycle.Observer<A> {
@@ -286,14 +302,14 @@ abstract class RxViewModel<A, S>: ViewModel() {
         loadingCount.onNext(-1)
     }
 
-    private fun execute(action: A, subject: Subject<A>) {
+    private fun <O> execute(action: O, subject: Subject<O>) {
         if (!subject.hasObservers()) {
             // TODO: Log
         }
         subject.onNext(action)
     }
 
-    private fun executeAndCombine(action: A): Observable<ActionAndState<A, S>> {
+    private fun executeAndCombine(action: A, filterError: Boolean = true): Observable<ActionAndState<A, S>> {
         return Observable.combineLatest(
                     Observable.just(action),
                     toStateMapperObservable(action),
@@ -312,8 +328,11 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .doOnComplete {
                     actionComplete.onNext(ActionAndState(action, currentState))
                 }
-                .onErrorResumeNext { _: Throwable ->
-                    Observable.empty<ActionAndState<A, S>>()
+                .onErrorResumeNext { throwable: Throwable ->
+                    if (filterError)
+                        Observable.empty<ActionAndState<A, S>>()
+                    else
+                        throw throwable
                 }
                 .doOnSubscribe {
                     if (showSpinner(action)) {
