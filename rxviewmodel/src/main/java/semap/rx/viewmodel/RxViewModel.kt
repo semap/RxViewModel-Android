@@ -293,14 +293,27 @@ abstract class RxViewModel<A, S>: ViewModel() {
         subject.onNext(action)
     }
 
-    private final fun executeAndCombine(action: A): Observable<ActionAndState<A, S>> {
-        return Observable.combineLatest(Observable.just(action),
+    private fun executeAndCombine(action: A): Observable<ActionAndState<A, S>> {
+        return Observable.combineLatest(
+                    Observable.just(action),
                     toStateMapperObservable(action),
                     BiFunction<A, StateMapper<S>, Pair<A, StateMapper<S>>> { a, m -> Pair(a, m) })
                 .observeOn(Schedulers.single())     // use Schedulers.single() to avoid race condition
-                .flatMap(this::toActionAndStateObservable)
+                .map { toActionAndStateObservable(it) }
+                .materialize()
+                .doOnNext {
+                    it.error?.let {
+                        if (!handleError(action, it)) {
+                            errorSubject.onNext(ActionAndError(action, it))
+                        }
+                    }
+                }
+                .dematerialize { it }
                 .doOnComplete {
                     actionComplete.onNext(ActionAndState(action, currentState))
+                }
+                .onErrorResumeNext { _: Throwable ->
+                    Observable.empty<ActionAndState<A, S>>()
                 }
                 .doOnSubscribe {
                     if (showSpinner(action)) {
@@ -324,25 +337,9 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     stateMapperObservable
                             .defaultIfEmpty(StateMapper { it })
                 }
-                .onErrorResumeNext { throwable: Throwable ->
-                    if (!handleError(action, throwable)) {
-                        errorSubject.onNext(ActionAndError(action, throwable))
-                    }
-                    Observable.empty<StateMapper<S>>()
-                }
     }
 
-    private fun toActionAndStateObservable(anm: Pair<A, StateMapper<S>>): Observable<ActionAndState<A, S>> {
-        val act = anm.first
-        val mapper = anm.second
-        return try {
-            val newState = mapper.map(currentState)
-            Observable.just(ActionAndState(act, newState))
-        } catch (throwable: Throwable) {
-            if (!handleError(act, throwable)) {
-                errorSubject.onNext(ActionAndError(act, throwable))
-            }
-            Observable.empty()
-        }
+    private fun toActionAndStateObservable(anm: Pair<A, StateMapper<S>>): ActionAndState<A, S> {
+        return ActionAndState(anm.first, anm.second.map(currentState))
     }
 }
