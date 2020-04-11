@@ -39,12 +39,12 @@ abstract class RxViewModel<A, S>: ViewModel() {
     /**
      * Observable of ActionAndState, it does NOT replay
      */
-    val actionAndStateObservable: Observable<ActionAndState<A, S>>
+    val actionOnNextObservable: Observable<ActionAndState<A, S>>
 
     /**
      * Observable of ActionAndState, it does NOT replay
      */
-    val actionCompleteObservable: Observable<ActionAndState<A, S>>
+    val actionOnCompleteObservable: Observable<ActionAndState<A, S>>
 
     /**
      * Observable of Error, it does NOT replay
@@ -54,7 +54,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
     /**
      * Observable of ActionAndState, it does NOT replay
      */
-    val actionAndErrorObservable: Observable<ActionAndError<A>>
+    val actionErrorObservable: Observable<ActionAndError<A>>
 
     /**
      * The inputs (the publishEvent subjects that accepts actions) of the RxViewModel
@@ -75,7 +75,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
         val sequential = sequentialActionSubject
                 .flatMap { list ->
                     Observable.fromIterable(list)
-                        .concatMap { executeAndCombine(it, false) }
+                        .concatMap { executeAndCombine(it, true) }
                         .onErrorResumeNext { _: Throwable ->
                             Observable.empty<ActionAndState<A, S>>()
                         }
@@ -83,18 +83,18 @@ abstract class RxViewModel<A, S>: ViewModel() {
         val concurrent = concurrentActionSubject.flatMap { executeAndCombine(it) }
         val flatMapLatest = switchMapLatestActionSubject.switchMap { executeAndCombine(it) }
 
-        actionAndStateObservable = Observable
+        this.actionOnNextObservable = Observable
                 .merge(sequential, concurrent, flatMapLatest)
                 .share()
 
-        stateObservable = actionAndStateObservable
+        this.stateObservable = actionOnNextObservable
                 .map { it.state }
                 .startWith(Observable.fromCallable { createInitialState() })
                 .doOnNext { stateBehaviorSubject.onNext(it) }
                 .replay(1)
                 .autoConnect()
 
-        loadingObservable = loadingCount
+        this.loadingObservable = loadingCount
                 .scan { x, y -> x + y }
                 .map { count -> count > 0 }
                 .startWith(false)
@@ -102,12 +102,12 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .replay(1)
                 .autoConnect()
 
-        actionAndErrorObservable = errorSubject.hide()
+        this.actionErrorObservable = errorSubject.hide()
 
-        errorObservable = actionAndErrorObservable
+        errorObservable = actionErrorObservable
                 .map { (_, error) -> error }
 
-        actionCompleteObservable = actionComplete.hide()
+        actionOnCompleteObservable = actionComplete.hide()
     }
 
     /**
@@ -183,11 +183,11 @@ abstract class RxViewModel<A, S>: ViewModel() {
 
     /**
      * Execute the action in sequence. The View classes create Actions and call this method to run them in sequence.
-     * @param action
+     * @param actions
      */
     fun executeActionInSequence(actions: List<A>) {
         if (!concurrentActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(actions, sequentialActionSubject) }
+            Handler(Looper.getMainLooper()).post { execute(actions, this.sequentialActionSubject) }
         } else {
             sequentialActionSubject.onNext(actions)
         }
@@ -240,28 +240,34 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return this.asLiveData(this@RxViewModel)
     }
 
-    fun <T: A> getActionObservable(clazz: Class<T>): Observable<T> {
-        return actionAndStateObservable
+    fun <T: A> actionOnNextObservable(clazz: Class<T>): Observable<T> {
+        return this.actionOnNextObservable
                 .map { it.action }
                 .ofType(clazz)
     }
 
-    fun <T: A, R> getActionObservable(clazz: Class<T>, mapper: (S) -> R?): Observable<R> {
-        return actionAndStateObservable
+    fun <T: A, R> actionOnNextObservable(clazz: Class<T>, mapper: (S) -> R?): Observable<R> {
+        return this.actionOnNextObservable
                 .filter { clazz.isInstance(it.action) }
                 .skipNull { mapper.invoke(it.state) }
     }
 
-    fun <T: A> getActionCompleteObservable(clazz: Class<T>): Observable<T> {
-        return actionCompleteObservable
+    fun <T: A> actionOnCompleteObservable(clazz: Class<T>): Observable<T> {
+        return this.actionOnCompleteObservable
                 .map { it.action }
                 .ofType(clazz)
     }
 
-    fun <T: A, R> getActionCompleteObservable(clazz: Class<T>, mapper: (S) -> R?): Observable<R> {
-        return actionCompleteObservable
+    fun <T: A, R> actionOnCompleteObservable(clazz: Class<T>, mapper: (S) -> R?): Observable<R> {
+        return this.actionOnCompleteObservable
                 .filter { clazz.isInstance(it.action) }
                 .skipNull { mapper.invoke(it.state) }
+    }
+
+    fun <T: A> actionErrorObservable(clazz: Class<T>): Observable<Throwable> {
+        return this.actionErrorObservable
+                .filter { clazz.isInstance(it.action) }
+                .map { it.error }
     }
 
     // A util method to skip the null values.
@@ -309,7 +315,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
         subject.onNext(action)
     }
 
-    private fun executeAndCombine(action: A, filterError: Boolean = true): Observable<ActionAndState<A, S>> {
+    private fun executeAndCombine(action: A, throwError: Boolean = false): Observable<ActionAndState<A, S>> {
         return Observable.combineLatest(
                     Observable.just(action),
                     toStateMapperObservable(action),
@@ -329,10 +335,10 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     actionComplete.onNext(ActionAndState(action, currentState))
                 }
                 .onErrorResumeNext { throwable: Throwable ->
-                    if (filterError)
-                        Observable.empty<ActionAndState<A, S>>()
-                    else
+                    if (throwError)
                         throw throwable
+                    else
+                        Observable.empty<ActionAndState<A, S>>()
                 }
                 .doOnSubscribe {
                     if (showSpinner(action)) {
