@@ -121,7 +121,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * @param action the action needed to be executed
      * @return the StateMapper (how to change the current state)
      */
-    abstract fun createObservable(action: A): Observable<StateMapper<S>>?
+    abstract fun createActionObservable(action: A): Observable<StateMapper<S>>?
 
     /**
      *
@@ -357,7 +357,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return Observable.just(action)
                 .flatMap { a ->
                     val stateMapperObservable: Observable<StateMapper<S>> =
-                            createObservable(a) ?: Observable.just(StateMapper { it })
+                            createActionObservable(a) ?: Observable.just(StateMapper { it })
 
                     stateMapperObservable
                             .defaultIfEmpty(StateMapper { it })
