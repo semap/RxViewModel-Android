@@ -25,7 +25,7 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
 
     // *** End of LiveData ***
 
-    override fun createObservable(action: LoginAction): Observable<StateMapper<LoginState>>? {
+    override fun createActionObservable(action: LoginAction): Observable<StateMapper<LoginState>>? {
         return when (action) {
         is SetUsername -> Observable.just(action)
                 .map { it.username }
