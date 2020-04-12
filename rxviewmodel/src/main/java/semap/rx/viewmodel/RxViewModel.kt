@@ -73,7 +73,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
 
     init {
         val sequential = sequentialActionSubject
-                .flatMap { list ->
+                .concatMap { list ->
                     Observable.fromIterable(list)
                         .concatMap { executeAndCombine(it, true) }
                         .onErrorResumeNext { _: Throwable ->
