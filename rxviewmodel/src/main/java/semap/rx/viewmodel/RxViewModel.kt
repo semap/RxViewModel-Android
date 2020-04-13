@@ -3,10 +3,7 @@ package semap.rx.viewmodel
 import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.ViewModel
-import io.reactivex.Observable
-import io.reactivex.ObservableSource
-import io.reactivex.Observer
-import io.reactivex.Scheduler
+import io.reactivex.*
 import io.reactivex.functions.BiFunction
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
@@ -34,7 +31,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * Observable of loading, it will replay
      */
     val loadingObservable: Observable<Boolean>
-
 
     /**
      * Observable of ActionAndState, it does NOT replay
@@ -69,7 +65,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
     private val stateBehaviorSubject = BehaviorSubject.create<S>()
     private val errorSubject = PublishSubject.create<ActionAndError<A>>().toSerialized()
     private val loadingCount = ReplaySubject.create<Int>().toSerialized()
-    private val actionComplete = PublishSubject.create<ActionAndState<A, S>>()
+    private val wrapperObservable: Observable<Wrapper>
 
     init {
         val sequential = sequentialActionSubject
@@ -77,20 +73,27 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     Observable.fromIterable(list)
                         .concatMap { executeAndCombine(it, true) }
                         .onErrorResumeNext { _: Throwable ->
-                            Observable.empty<ActionAndState<A, S>>()
+                            Observable.empty<Wrapper>()
                         }
                 }
         val concurrent = concurrentActionSubject.flatMap { executeAndCombine(it) }
         val flatMapLatest = switchMapLatestActionSubject.switchMap { executeAndCombine(it) }
 
-        this.actionOnNextObservable = Observable
+        this.wrapperObservable = Observable
                 .merge(sequential, concurrent, flatMapLatest)
                 .share()
+
+        actionOnCompleteObservable = this.wrapperObservable
+                .filter { it.isComplete }
+                .map { it.actionAndState }
+
+        this.actionOnNextObservable = this.wrapperObservable
+                .filter { !it.isComplete }
+                .map { it.actionAndState }
 
         this.stateObservable = actionOnNextObservable
                 .map { it.state }
                 .startWith(Observable.fromCallable { createInitialState() })
-                .doOnNext { stateBehaviorSubject.onNext(it) }
                 .replay(1)
                 .autoConnect()
 
@@ -107,7 +110,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
         errorObservable = actionErrorObservable
                 .map { (_, error) -> error }
 
-        actionOnCompleteObservable = actionComplete.hide()
     }
 
     /**
@@ -315,13 +317,15 @@ abstract class RxViewModel<A, S>: ViewModel() {
         subject.onNext(action)
     }
 
-    private fun executeAndCombine(action: A, throwError: Boolean = false): Observable<ActionAndState<A, S>> {
+    private fun executeAndCombine(action: A, throwError: Boolean = false): Observable<Wrapper> {
         return Observable.combineLatest(
                     Observable.just(action),
                     toStateMapperObservable(action),
                     BiFunction<A, StateMapper<S>, Pair<A, StateMapper<S>>> { a, m -> Pair(a, m) })
                 .observeOn(Schedulers.single())     // use Schedulers.single() to avoid race condition
                 .map { toActionAndStateObservable(it) }
+                .doOnNext { stateBehaviorSubject.onNext(it.state) }
+                .map { Wrapper(it) }
                 .materialize()
                 .doOnNext {
                     it.error?.let {
@@ -330,15 +334,22 @@ abstract class RxViewModel<A, S>: ViewModel() {
                         }
                     }
                 }
-                .dematerialize { it }
-                .doOnComplete {
-                    actionComplete.onNext(ActionAndState(action, currentState))
+                .flatMap {
+                    if (it.isOnComplete) {
+                        Observable.just(
+                                Notification.createOnNext(Wrapper(ActionAndState(action, currentState), true)),
+                                Notification.createOnComplete<Wrapper>()
+                        )
+                    }  else {
+                        Observable.just(it)
+                    }
                 }
+                .dematerialize { it }
                 .onErrorResumeNext { throwable: Throwable ->
                     if (throwError)
                         throw throwable
                     else
-                        Observable.empty<ActionAndState<A, S>>()
+                        Observable.empty<Wrapper>()
                 }
                 .doOnSubscribe {
                     if (showSpinner(action)) {
@@ -367,4 +378,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
     private fun toActionAndStateObservable(anm: Pair<A, StateMapper<S>>): ActionAndState<A, S> {
         return ActionAndState(anm.first, anm.second.map(currentState))
     }
+
+    private inner class Wrapper(val actionAndState: ActionAndState<A, S>, val isComplete: Boolean = false)
 }
