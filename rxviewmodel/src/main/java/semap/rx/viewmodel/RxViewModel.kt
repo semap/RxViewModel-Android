@@ -55,6 +55,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
     /**
      * The inputs (the publishEvent subjects that accepts actions) of the RxViewModel
      */
+    private val concatEagerActionSubject = PublishSubject.create<A>().toSerialized()
     private val concurrentActionSubject = PublishSubject.create<A>().toSerialized()
     private val sequentialActionSubject = PublishSubject.create<List<A>>().toSerialized()
     private val switchMapLatestActionSubject = PublishSubject.create<A>().toSerialized()
@@ -77,10 +78,11 @@ abstract class RxViewModel<A, S>: ViewModel() {
                         }
                 }
         val concurrent = concurrentActionSubject.flatMap { executeAndCombine(it) }
+        val concatEager = concatEagerActionSubject.concatMapEager { executeAndCombine(it) }
         val flatMapLatest = switchMapLatestActionSubject.switchMap { executeAndCombine(it) }
 
         this.wrapperObservable = Observable
-                .merge(sequential, concurrent, flatMapLatest)
+                .merge(sequential, concatEager, concurrent, flatMapLatest)
                 .share()
 
         actionOnCompleteObservable = this.wrapperObservable
@@ -160,14 +162,26 @@ abstract class RxViewModel<A, S>: ViewModel() {
     }
 
     /**
-     * Execute the action in parallel. The View classes create Actions and call this method to run them in parallel.
+     * Execute the action in parallel. And keep the order of the stateMapper the same with the actions.
+     * The View classes create Actions and call this method to run them in parallel.
      * @param action
      */
     fun executeAction(action: A) {
-        if (!concurrentActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(action, concurrentActionSubject) }
+        executeAction(action, true)
+    }
+
+    /**
+     * Execute the action in parallel. And keep the order of the stateMapper. (concatMapEager)
+     * The View classes create Actions and call this method to run them in parallel.
+     * @param action
+     * @param stateMapInOrder true if keep the order of the stateMapper the same with the actions.
+     */
+    fun executeAction(action: A, stateMapInOrder: Boolean) {
+        val subject = if (stateMapInOrder) concatEagerActionSubject else concurrentActionSubject;
+        if (!subject.hasObservers()) {
+            Handler(Looper.getMainLooper()).post { execute(action, subject) }
         } else {
-            concurrentActionSubject.onNext(action)
+            subject.onNext(action)
         }
     }
 
@@ -176,7 +190,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * @param action
      */
     fun executeActionInSequence(action: A) {
-        if (!concurrentActionSubject.hasObservers()) {
+        if (!concatEagerActionSubject.hasObservers()) {
             Handler(Looper.getMainLooper()).post { execute(listOf(action), sequentialActionSubject) }
         } else {
             sequentialActionSubject.onNext(listOf(action))
@@ -188,7 +202,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * @param actions
      */
     fun executeActionInSequence(actions: List<A>) {
-        if (!concurrentActionSubject.hasObservers()) {
+        if (!concatEagerActionSubject.hasObservers()) {
             Handler(Looper.getMainLooper()).post { execute(actions, this.sequentialActionSubject) }
         } else {
             sequentialActionSubject.onNext(actions)
@@ -211,7 +225,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
     }
 
     fun getConcurrentActionObserver(): Observer<A> {
-        return concurrentActionSubject
+        return concatEagerActionSubject
     }
 
     fun getSequentialActionObserver(): Observer<List<A>> {
@@ -223,7 +237,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
     }
 
     fun getConcurrentActionLiveDataObserver(): androidx.lifecycle.Observer<A> {
-        return androidx.lifecycle.Observer { concurrentActionSubject.onNext(it) }
+        return androidx.lifecycle.Observer { concatEagerActionSubject.onNext(it) }
     }
 
     fun getSequentialActionLiveDataObserver(): androidx.lifecycle.Observer<A> {
@@ -323,7 +337,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     toStateMapperObservable(action),
                     BiFunction<A, StateMapper<S>, Pair<A, StateMapper<S>>> { a, m -> Pair(a, m) })
                 .observeOn(Schedulers.single())     // use Schedulers.single() to avoid race condition
-                .map { toActionAndStateObservable(it) }
+                .map { ActionAndState(it.first, it.second.map(currentState)) }
                 .doOnNext { stateBehaviorSubject.onNext(it.state) }
                 .map { Wrapper(it) }
                 .materialize()
@@ -373,10 +387,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     stateMapperObservable
                             .defaultIfEmpty(StateMapper { it })
                 }
-    }
-
-    private fun toActionAndStateObservable(anm: Pair<A, StateMapper<S>>): ActionAndState<A, S> {
-        return ActionAndState(anm.first, anm.second.map(currentState))
     }
 
     private inner class Wrapper(val actionAndState: ActionAndState<A, S>, val isComplete: Boolean = false)
