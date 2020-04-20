@@ -13,8 +13,6 @@ import io.reactivex.subjects.Subject
 
 abstract class RxViewModel<A, S>: ViewModel() {
 
-//    private val TAG = RxViewModel::class.java.simpleName
-
     /**
      * The outputs (Observables) of the RxViewModel
      */
@@ -55,10 +53,11 @@ abstract class RxViewModel<A, S>: ViewModel() {
     /**
      * The inputs (the publishEvent subjects that accepts actions) of the RxViewModel
      */
-    private val concatEagerActionSubject = PublishSubject.create<A>().toSerialized()
+    private val concatEagerActionSubject = PublishSubject.create<DeferrableAction>().toSerialized()
     private val concurrentActionSubject = PublishSubject.create<A>().toSerialized()
     private val sequentialActionSubject = PublishSubject.create<List<A>>().toSerialized()
     private val switchMapLatestActionSubject = PublishSubject.create<A>().toSerialized()
+    private val deferredActionSubject = PublishSubject.create<A>().toSerialized()
 
     /**
      * Internal data
@@ -78,11 +77,12 @@ abstract class RxViewModel<A, S>: ViewModel() {
                         }
                 }
         val concurrent = concurrentActionSubject.flatMap { executeAndCombine(it) }
-        val concatEager = concatEagerActionSubject.concatMapEager { executeAndCombine(it) }
+        val concatEager = concatEagerActionSubject.concatMapEager { executeAndCombine(it.action, throwError = false, deferredAction = it.isDeferred) }
         val flatMapLatest = switchMapLatestActionSubject.switchMap { executeAndCombine(it) }
+        val deferred = deferredActionSubject.concatMapEager { executeAndCombine(it) }
 
         this.wrapperObservable = Observable
-                .merge(sequential, concatEager, concurrent, flatMapLatest)
+                .merge(listOf(sequential, concatEager, concurrent, flatMapLatest, deferred))
                 .share()
 
         actionOnCompleteObservable = this.wrapperObservable
@@ -109,9 +109,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
 
         this.actionErrorObservable = errorSubject.hide()
 
-        errorObservable = actionErrorObservable
+        this.errorObservable = this.actionErrorObservable
                 .map { (_, error) -> error }
-
     }
 
     /**
@@ -162,26 +161,50 @@ abstract class RxViewModel<A, S>: ViewModel() {
     }
 
     /**
-     * Execute the action in parallel. And keep the order of the stateMapper the same with the actions.
+     * Execute the action in parallel. And keep the order of the stateMappers be the same with the actions.
+     * Notice: The action's stateMapperObservable will not complete if the stateMapperObservable from the previous
+     * action does not complete.
      * The View classes create Actions and call this method to run them in parallel.
      * @param action
      */
-    fun executeAction(action: A) {
-        executeAction(action, true)
+    fun executeInParallel(action: A) {
+        executeInParallel(action, stateMapInOrder = true, deferred = false)
     }
 
+    /**
+     * Postpone the execution of the action until all the stateMappers of the previous actions in parallel complete.
+     * @param action
+     */
+    fun executeInParallelWithDefer(action: A) {
+        executeInParallel(action, stateMapInOrder = true, deferred = true)
+    }
+
+    /**
+     * Execute the action in parallel. The order of the stateMapper is not guaranteed.
+     */
+    fun executeInParallelWithoutOrder(action: A) {
+        executeInParallel(action, stateMapInOrder = false, deferred = false)
+    }
     /**
      * Execute the action in parallel. And keep the order of the stateMapper. (concatMapEager)
      * The View classes create Actions and call this method to run them in parallel.
      * @param action
      * @param stateMapInOrder true if keep the order of the stateMapper the same with the actions.
      */
-    fun executeAction(action: A, stateMapInOrder: Boolean) {
-        val subject = if (stateMapInOrder) concatEagerActionSubject else concurrentActionSubject;
-        if (!subject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(action, subject) }
+    private fun executeInParallel(action: A, stateMapInOrder: Boolean, deferred: Boolean) {
+
+        if (stateMapInOrder) {
+            if (!concatEagerActionSubject.hasObservers()) {
+                Handler(Looper.getMainLooper()).post { execute(DeferrableAction(action, deferred), concatEagerActionSubject) }
+            } else {
+                concatEagerActionSubject.onNext(DeferrableAction(action, deferred))
+            }
         } else {
-            subject.onNext(action)
+            if (!concurrentActionSubject.hasObservers()) {
+                Handler(Looper.getMainLooper()).post { execute(action, concurrentActionSubject) }
+            } else {
+                concurrentActionSubject.onNext(action)
+            }
         }
     }
 
@@ -189,7 +212,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * Execute the action in sequence. The View classes create Actions and call this method to run them in sequence.
      * @param action
      */
-    fun executeActionInSequence(action: A) {
+    fun executeInSequence(action: A) {
         if (!concatEagerActionSubject.hasObservers()) {
             Handler(Looper.getMainLooper()).post { execute(listOf(action), sequentialActionSubject) }
         } else {
@@ -201,7 +224,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * Execute the action in sequence. The View classes create Actions and call this method to run them in sequence.
      * @param actions
      */
-    fun executeActionInSequence(actions: List<A>) {
+    fun executeInSequence(actions: List<A>) {
         if (!concatEagerActionSubject.hasObservers()) {
             Handler(Looper.getMainLooper()).post { execute(actions, this.sequentialActionSubject) }
         } else {
@@ -209,43 +232,18 @@ abstract class RxViewModel<A, S>: ViewModel() {
         }
     }
 
-    // The previous action will be disposed.
     /**
      * Execute the action and dispose the previous action (if not finished).
      * The View classes create Action and call this method to run it. It will dispose the previous
      * action if the previous action is not finished.
      * @param action
      */
-    fun executeActionSwitchMap(action: A) {
+    fun executeWithSwitchMap(action: A) {
         if (!switchMapLatestActionSubject.hasObservers()) {
             Handler(Looper.getMainLooper()).post { execute(action, switchMapLatestActionSubject) }
         } else {
             switchMapLatestActionSubject.onNext(action)
         }
-    }
-
-    fun getConcurrentActionObserver(): Observer<A> {
-        return concatEagerActionSubject
-    }
-
-    fun getSequentialActionObserver(): Observer<List<A>> {
-        return sequentialActionSubject
-    }
-
-    fun getSwitchActionObserver(): Observer<A> {
-        return switchMapLatestActionSubject
-    }
-
-    fun getConcurrentActionLiveDataObserver(): androidx.lifecycle.Observer<A> {
-        return androidx.lifecycle.Observer { concatEagerActionSubject.onNext(it) }
-    }
-
-    fun getSequentialActionLiveDataObserver(): androidx.lifecycle.Observer<A> {
-        return androidx.lifecycle.Observer { sequentialActionSubject.onNext(listOf(it)) }
-    }
-
-    fun getSwitchActionLiveDataObserver(): androidx.lifecycle.Observer<A> {
-        return androidx.lifecycle.Observer { switchMapLatestActionSubject.onNext(it) }
     }
 
     fun isLoadingObservable(): Observable<Boolean> {
@@ -298,32 +296,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return Optional(obj)
     }
 
-    /**
-     * Given an observable, make it showing the "spinner".
-     * @param observable
-     * @param <T>
-     * @return
-    </T> */
-    protected fun <T> enableLoading(observable: Observable<T>): ObservableSource<T> {
-        return observable
-                .doOnSubscribe { increaseLoadingCount() }
-                .doFinally { decreaseLoadingCount() }
-    }
-
-    /**
-     * Manually increase the loading count.
-     */
-    fun increaseLoadingCount() {
-        loadingCount.onNext(1)
-    }
-
-    /**
-     * Manually decrease the loading count.
-     */
-    fun decreaseLoadingCount() {
-        loadingCount.onNext(-1)
-    }
-
     private fun <O> execute(action: O, subject: Subject<O>) {
         if (!subject.hasObservers()) {
             // TODO: Log
@@ -331,20 +303,23 @@ abstract class RxViewModel<A, S>: ViewModel() {
         subject.onNext(action)
     }
 
-    private fun executeAndCombine(action: A, throwError: Boolean = false): Observable<Wrapper> {
+    private fun executeAndCombine(action: A, throwError: Boolean = false, deferredAction: Boolean = false): Observable<Wrapper> {
         return Observable.combineLatest(
                     Observable.just(action),
-                    toStateMapperObservable(action),
+                    if (deferredAction) Observable.empty() else toStateMapperObservable(action),
                     BiFunction<A, StateMapper<S>, Pair<A, StateMapper<S>>> { a, m -> Pair(a, m) })
                 .observeOn(Schedulers.single())     // use Schedulers.single() to avoid race condition
                 .map { ActionAndState(it.first, it.second.map(currentState)) }
                 .doOnNext { stateBehaviorSubject.onNext(it.state) }
+                .observeOn(defaultScheduler())
                 .map { Wrapper(it) }
                 .materialize()
+                .doOnNext { if (deferredAction && it.isOnComplete) deferredActionSubject.onNext(action) }
+                .filter { !deferredAction }
                 .doOnNext {
-                    it.error?.let {
-                        if (!handleError(action, it)) {
-                            errorSubject.onNext(ActionAndError(action, it))
+                    it.error?.let {throwable ->
+                        if (!handleError(action, throwable)) {
+                            errorSubject.onNext(ActionAndError(action, throwable))
                         }
                     }
                 }
@@ -366,12 +341,12 @@ abstract class RxViewModel<A, S>: ViewModel() {
                         Observable.empty<Wrapper>()
                 }
                 .doOnSubscribe {
-                    if (showSpinner(action)) {
+                    if (!deferredAction && showSpinner(action)) {
                         loadingCount.onNext(1)
                     }
                 }
                 .doFinally {
-                    if (showSpinner(action)) {
+                    if (!deferredAction && showSpinner(action)) {
                         loadingCount.onNext(-1)
                     }
                 }
@@ -390,4 +365,5 @@ abstract class RxViewModel<A, S>: ViewModel() {
     }
 
     private inner class Wrapper(val actionAndState: ActionAndState<A, S>, val isComplete: Boolean = false)
+    private inner class DeferrableAction(val action: A, val isDeferred: Boolean = false)
 }
