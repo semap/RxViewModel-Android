@@ -1,6 +1,6 @@
 package semap.rx.viewmodel
 
-import androidx.lifecycle.*
+import androidx.lifecycle.LifecycleOwner
 import io.reactivex.Observable
 
 fun <T> RxLiveData<T>.observe(owner: LifecycleOwner, observer: (t: T) -> Unit) {

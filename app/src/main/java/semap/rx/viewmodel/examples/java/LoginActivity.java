@@ -1,14 +1,7 @@
 package semap.rx.viewmodel.examples.java;
 
-import static semap.rx.viewmodel.examples.java.LoginAction.LOGIN;
-import static semap.rx.viewmodel.examples.java.LoginAction.SET_PASSWORD;
-import static semap.rx.viewmodel.examples.java.LoginAction.SET_USERNAME;
-
-import androidx.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.os.Bundle;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import android.text.Editable;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
@@ -16,8 +9,15 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProviders;
 import semap.rx.R;
 import semap.rx.viewmodel.examples.AbstractTextWatcher;
+
+import static semap.rx.viewmodel.examples.java.LoginAction.LOGIN;
+import static semap.rx.viewmodel.examples.java.LoginAction.SET_PASSWORD;
+import static semap.rx.viewmodel.examples.java.LoginAction.SET_USERNAME;
 
 /**
  * A login screen that offers login via username/password.

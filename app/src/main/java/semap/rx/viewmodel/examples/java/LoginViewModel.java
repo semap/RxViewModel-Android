@@ -1,13 +1,13 @@
 package semap.rx.viewmodel.examples.java;
 
-import static semap.rx.viewmodel.examples.java.LoginAction.LOGIN;
-import static semap.rx.viewmodel.examples.java.LoginAction.SET_PASSWORD;
-import static semap.rx.viewmodel.examples.java.LoginAction.SET_USERNAME;
-
 import io.reactivex.Observable;
 import semap.rx.viewmodel.RxViewModel;
 import semap.rx.viewmodel.StateMapper;
 import semap.rx.viewmodel.examples.LoginService;
+
+import static semap.rx.viewmodel.examples.java.LoginAction.LOGIN;
+import static semap.rx.viewmodel.examples.java.LoginAction.SET_PASSWORD;
+import static semap.rx.viewmodel.examples.java.LoginAction.SET_USERNAME;
 
 public class LoginViewModel extends RxViewModel<LoginAction, LoginState> {
     private LoginService loginService;
