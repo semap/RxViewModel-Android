@@ -1,8 +1,8 @@
 package semap.rx.viewmodel;
 
-import androidx.annotation.Nullable;
-
 import java.util.NoSuchElementException;
+
+import androidx.annotation.Nullable;
 
 public class Optional<M> {
 

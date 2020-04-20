@@ -3,7 +3,9 @@ package semap.rx.viewmodel
 import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.ViewModel
-import io.reactivex.*
+import io.reactivex.Notification
+import io.reactivex.Observable
+import io.reactivex.Scheduler
 import io.reactivex.functions.BiFunction
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
@@ -65,7 +67,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
     private val stateBehaviorSubject = BehaviorSubject.create<S>()
     private val errorSubject = PublishSubject.create<ActionAndError<A>>().toSerialized()
     private val loadingCount = ReplaySubject.create<Int>().toSerialized()
-    private val wrapperObservable: Observable<Wrapper>
+    private val wrapperObservable: Observable<AnsWrapper>
 
     init {
         val sequential = sequentialActionSubject
@@ -73,7 +75,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     Observable.fromIterable(list)
                         .concatMap { executeAndCombine(it, true) }
                         .onErrorResumeNext { _: Throwable ->
-                            Observable.empty<Wrapper>()
+                            Observable.empty<AnsWrapper>()
                         }
                 }
         val concurrent = concurrentActionSubject.flatMap { executeAndCombine(it) }
@@ -303,7 +305,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
         subject.onNext(action)
     }
 
-    private fun executeAndCombine(action: A, throwError: Boolean = false, deferredAction: Boolean = false): Observable<Wrapper> {
+    private fun executeAndCombine(action: A, throwError: Boolean = false, deferredAction: Boolean = false): Observable<AnsWrapper> {
         return Observable.combineLatest(
                     Observable.just(action),
                     if (deferredAction) Observable.empty() else toStateMapperObservable(action),
@@ -312,7 +314,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .map { ActionAndState(it.first, it.second.map(currentState)) }
                 .doOnNext { stateBehaviorSubject.onNext(it.state) }
                 .observeOn(defaultScheduler())
-                .map { Wrapper(it) }
+                .map { AnsWrapper(it) }
                 .materialize()
                 .doOnNext { if (deferredAction && it.isOnComplete) deferredActionSubject.onNext(action) }
                 .filter { !deferredAction }
@@ -326,8 +328,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .flatMap {
                     if (it.isOnComplete) {
                         Observable.just(
-                                Notification.createOnNext(Wrapper(ActionAndState(action, currentState), true)),
-                                Notification.createOnComplete<Wrapper>()
+                                Notification.createOnNext(AnsWrapper(ActionAndState(action, currentState), true)),
+                                Notification.createOnComplete<AnsWrapper>()
                         )
                     }  else {
                         Observable.just(it)
@@ -338,7 +340,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     if (throwError)
                         throw throwable
                     else
-                        Observable.empty<Wrapper>()
+                        Observable.empty<AnsWrapper>()
                 }
                 .doOnSubscribe {
                     if (!deferredAction && showSpinner(action)) {
@@ -364,6 +366,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 }
     }
 
-    private inner class Wrapper(val actionAndState: ActionAndState<A, S>, val isComplete: Boolean = false)
+    private inner class AnsWrapper(val actionAndState: ActionAndState<A, S>, val isComplete: Boolean = false)
     private inner class DeferrableAction(val action: A, val isDeferred: Boolean = false)
 }
