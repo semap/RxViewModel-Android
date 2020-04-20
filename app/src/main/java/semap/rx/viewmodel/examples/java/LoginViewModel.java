@@ -17,7 +17,7 @@ public class LoginViewModel extends RxViewModel<LoginAction, LoginState> {
     }
 
     @Override
-    public Observable<StateMapper<LoginState>> createActionObservable(LoginAction action) {
+    public Observable<StateMapper<LoginState>> createStateMapperObservable(LoginAction action) {
         switch (action.getType()) {
             case SET_USERNAME:
                 return Observable.just(action)
