@@ -27,7 +27,7 @@ class LoginViewModelTests {
         val stateObserver = viewModel.stateObservable.test()
         val errObserver = viewModel.errorObservable.test()
 
-        viewModel.executeInParallel(SetUsername("Jennifer"))
+        viewModel.execute(SetUsername("Jennifer"))
 
         assertThat(stateObserver.lastValue().username, `is`("Jennifer"))
         assertThat(errObserver.valueCount(), `is`(0))
@@ -42,7 +42,7 @@ class LoginViewModelTests {
         val stateObserver = viewModel.stateObservable.test()
         val errObserver = viewModel.errorObservable.test()
 
-        viewModel.executeInParallel(SetUsername("st@yHome"))
+        viewModel.execute(SetUsername("st@yHome"))
 
         assertThat(stateObserver.lastValue().username, `is`("st@yHome"))
         assertThat(errObserver.valueCount(), `is`(0))
@@ -58,11 +58,11 @@ class LoginViewModelTests {
         val isFormValidObserver = viewModel.isFormValid.test()
 
         assertThat(isFormValidObserver.lastValue(), `is`(false))
-        viewModel.executeInParallel(SetUsername("st@yHome"))
-        viewModel.executeInParallel(SetPassword("Pa"))
+        viewModel.execute(SetUsername("st@yHome"))
+        viewModel.execute(SetPassword("Pa"))
         assertThat(isFormValidObserver.lastValue(), `is`(false))
 
-        viewModel.executeInParallel(SetPassword("Pas"))
+        viewModel.execute(SetPassword("Pas"))
         assertThat(isFormValidObserver.lastValue(), `is`(true))
 
     }
@@ -81,11 +81,11 @@ class LoginViewModelTests {
         val loadingObserver = viewModel.isLoading.test()
         val loginActionObserver = viewModel.loginAction.test()
 
-        viewModel.executeInParallel(SetUsername("joseph"))
+        viewModel.execute(SetUsername("joseph"))
 
-        viewModel.executeInParallel(SetPassword("p@ssWord"))
+        viewModel.execute(SetPassword("p@ssWord"))
 
-        viewModel.executeInParallelWithDefer(Login)
+        viewModel.execute(Login)
 
         assertThat(loadingObserver.values(), `is`(listOf(false, true, false)))
         assertThat(stateObserver.lastValue().token, `is`(mockToken))
@@ -110,11 +110,11 @@ class LoginViewModelTests {
         val stateObserver = viewModel.stateObservable.test()
         val errObserver = viewModel.errorObservable.test()
 
-        viewModel.executeInParallel(SetUsername("joseph"))
+        viewModel.execute(SetUsername("joseph"))
 
-        viewModel.executeInParallel(SetPassword("p@ssWord"))
+        viewModel.execute(SetPassword("p@ssWord"))
 
-        viewModel.executeInParallelWithDefer(Login)
+        viewModel.execute(Login)
 
         assertThat(errObserver.valueCount(), `is`(1))
         assertThat(errObserver.lastValue().message, `is`(errMsg))

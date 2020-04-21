@@ -1,6 +1,8 @@
 package semap.rx.viewmodel.examples.kotlin
 
 import io.reactivex.Observable
+import semap.rx.viewmodel.ActionExecutionMode
+import semap.rx.viewmodel.ActionExecutionMode.*
 import semap.rx.viewmodel.RxViewModel
 import semap.rx.viewmodel.StateMapper
 import semap.rx.viewmodel.examples.LoginService
@@ -45,6 +47,13 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
         return when (action) {
             is Login -> true
             else -> false
+        }
+    }
+
+    override fun executeMode(action: LoginAction): ActionExecutionMode {
+        return when (action) {
+            is Login -> ParallelDefer
+            else -> ParallelDefault
         }
     }
 

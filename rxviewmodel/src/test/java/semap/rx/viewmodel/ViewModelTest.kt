@@ -32,7 +32,7 @@ class ViewModelTest {
                 .distinctUntilChanged()
                 .test()
 
-        viewModel.executeInParallel(FooAction.SetFirstName("John"))
+        viewModel.execute(FooAction.SetFirstName("John"))
 
         assertThat(setFirstNameActionObserver1.lastValue(), `is`(FooAction.SetFirstName("John")))
 
@@ -68,17 +68,17 @@ class ViewModelTest {
                 .actionOnCompleteObservable(FooAction.SetLastName::class.java)
                 .test()
 
-        viewModel.executeInParallel(FooAction.SetFirstName("Kehuan"))
+        viewModel.execute(FooAction.SetFirstName("Kehuan"))
         assertThat(stateObserver.lastValue().firstName, `is`("Kehuan"))
         assertThat(firstNameChangedObservable.lastValue(), `is`("Kehuan"))
         errorObserver.assertEmpty()
 
-        viewModel.executeInParallel(FooAction.SetLastName("Wang"))
+        viewModel.execute(FooAction.SetLastName("Wang"))
         assertThat(stateObserver.lastValue().firstName, not("Wang"))
         assertThat(errorObserver.lastValue().message, `is`("error"))
 
 
-        viewModel.executeInParallelWithDefer(FooAction.Submit)
+        viewModel.execute(FooAction.Submit)
         loadingObserver.assertValueCount(3) // false, true, false
         assertThat(loadingObserver.lastValue(), `is`(false))
 

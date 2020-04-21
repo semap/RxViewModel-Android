@@ -1,6 +1,11 @@
 package semap.rx.viewmodel.examples.java;
 
+import org.jetbrains.annotations.NotNull;
+
 import io.reactivex.Observable;
+import semap.rx.viewmodel.ActionExecutionMode;
+import semap.rx.viewmodel.ActionExecutionMode.ParallelDefer;
+import semap.rx.viewmodel.ActionExecutionMode.ParallelDefault;
 import semap.rx.viewmodel.RxViewModel;
 import semap.rx.viewmodel.StateMapper;
 import semap.rx.viewmodel.examples.LoginService;
@@ -42,6 +47,17 @@ public class LoginViewModel extends RxViewModel<LoginAction, LoginState> {
                 return true;
             default:
                 return false;
+        }
+    }
+
+    @NotNull
+    @Override
+    public ActionExecutionMode executeMode(LoginAction action) {
+        switch (action.getType()) {
+            case LOGIN:
+                return ParallelDefer.INSTANCE;
+            default:
+                return ParallelDefault.INSTANCE;
         }
     }
 

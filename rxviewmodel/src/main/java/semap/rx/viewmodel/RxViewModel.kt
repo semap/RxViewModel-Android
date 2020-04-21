@@ -12,6 +12,7 @@ import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.ReplaySubject
 import io.reactivex.subjects.Subject
+import semap.rx.viewmodel.ActionExecutionMode.*
 
 abstract class RxViewModel<A, S>: ViewModel() {
 
@@ -137,6 +138,10 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return false
     }
 
+    open fun executeMode(action: A): ActionExecutionMode {
+        return ParallelDefault
+    }
+
     /**
      * Default scheduler for observables
      * @return
@@ -162,37 +167,20 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return RxLiveData(observableWithoutError)
     }
 
-    /**
-     * Execute the action in parallel. And keep the order of the stateMappers be the same with the actions.
-     * Notice: The action's stateMapperObservable will not complete if the stateMapperObservable from the previous
-     * action does not complete.
-     * The View classes create Actions and call this method to run them in parallel.
-     * @param action
-     */
-    fun executeInParallel(action: A) {
-        executeInParallel(action, stateMapInOrder = true, deferred = false)
+    fun execute(action: A) {
+        execute(action, executeMode(action))
     }
 
-    /**
-     * Postpone the execution of the action until all the stateMappers of the previous actions in parallel complete.
-     * @param action
-     */
-    fun executeInParallelWithDefer(action: A) {
-        executeInParallel(action, stateMapInOrder = true, deferred = true)
+    fun execute(action: A, mode: ActionExecutionMode) {
+        when(mode) {
+            Parallel ->  executeInParallel(action, stateMapInOrder = false, deferred = false)
+            ParallelDefer -> executeInParallel(action, stateMapInOrder = true, deferred = true)
+            Sequence -> executeInSequence(action)
+            SwitchMap -> executeWithSwitchMap(action)
+            else -> executeInParallel(action, stateMapInOrder = true, deferred = false)
+        }
     }
 
-    /**
-     * Execute the action in parallel. The order of the stateMapper is not guaranteed.
-     */
-    fun executeInParallelWithoutOrder(action: A) {
-        executeInParallel(action, stateMapInOrder = false, deferred = false)
-    }
-    /**
-     * Execute the action in parallel. And keep the order of the stateMapper. (concatMapEager)
-     * The View classes create Actions and call this method to run them in parallel.
-     * @param action
-     * @param stateMapInOrder true if keep the order of the stateMapper the same with the actions.
-     */
     private fun executeInParallel(action: A, stateMapInOrder: Boolean, deferred: Boolean) {
 
         if (stateMapInOrder) {
@@ -210,11 +198,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
         }
     }
 
-    /**
-     * Execute the action in sequence. The View classes create Actions and call this method to run them in sequence.
-     * @param action
-     */
-    fun executeInSequence(action: A) {
+    private fun executeInSequence(action: A) {
         if (!concatEagerActionSubject.hasObservers()) {
             Handler(Looper.getMainLooper()).post { execute(listOf(action), sequentialActionSubject) }
         } else {
@@ -234,13 +218,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
         }
     }
 
-    /**
-     * Execute the action and dispose the previous action (if not finished).
-     * The View classes create Action and call this method to run it. It will dispose the previous
-     * action if the previous action is not finished.
-     * @param action
-     */
-    fun executeWithSwitchMap(action: A) {
+    private fun executeWithSwitchMap(action: A) {
         if (!switchMapLatestActionSubject.hasObservers()) {
             Handler(Looper.getMainLooper()).post { execute(action, switchMapLatestActionSubject) }
         } else {
