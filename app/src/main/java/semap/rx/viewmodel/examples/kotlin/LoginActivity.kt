@@ -39,21 +39,21 @@ class LoginActivity: AppCompatActivity() {
                 .map { Login }
                 .doAfterNext { this.closeKeyboard() }
                 .asLiveData(viewModel)
-                .observe(this, viewModel::executeInParallelWithDefer)
+                .observe(this, viewModel::execute)
 
         email.textChanges()
                 .skipInitialValue()
                 .map { it.toString() }
                 .map(::SetUsername)
                 .asLiveData(viewModel)
-                .observe(this, viewModel::executeInParallel)
+                .observe(this, viewModel::execute)
 
         password.textChanges()
                 .skipInitialValue()
                 .map { it.toString() }
                 .map (::SetPassword)
                 .asLiveData(viewModel)
-                .observe(this, viewModel::executeInParallel)
+                .observe(this, viewModel::execute)
 
     }
 

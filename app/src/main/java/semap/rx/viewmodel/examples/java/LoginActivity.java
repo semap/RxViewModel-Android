@@ -67,25 +67,25 @@ public class LoginActivity extends AppCompatActivity {
 
     private void bindViewToViewModel() {
 
-        // You can use use RxBinding to create button clicks observable
+        // You can also use use RxBinding to create button clicks observable
         signInButton.setOnClickListener(__ -> {
             closeKeyboard();
-            viewModel.executeInParallelWithDefer(new LoginAction(LOGIN));
+            viewModel.execute(new LoginAction(LOGIN));
         });
 
-        // You can use use RxBinding to create textChanges observable
+        // You can also use use RxBinding to create textChanges observable
         usernameView.addTextChangedListener(new AbstractTextWatcher() {
             @Override
             public void afterTextChanged(Editable s) {
-                viewModel.executeInParallel(new LoginAction(SET_USERNAME, usernameView.getText().toString()));
+                viewModel.execute(new LoginAction(SET_USERNAME, usernameView.getText().toString()));
             }
         });
 
-        // You can use use RxBinding to create textChanges observable
+        // You can also use use RxBinding to create textChanges observable
         passwordView.addTextChangedListener(new AbstractTextWatcher() {
             @Override
             public void afterTextChanged(Editable s) {
-                viewModel.executeInParallel(new LoginAction(SET_PASSWORD, passwordView.getText().toString()));
+                viewModel.execute(new LoginAction(SET_PASSWORD, passwordView.getText().toString()));
             }
         });
 
