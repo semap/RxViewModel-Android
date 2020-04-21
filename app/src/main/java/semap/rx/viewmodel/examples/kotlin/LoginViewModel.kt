@@ -36,8 +36,8 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
                 .map { password -> StateMapper<LoginState> { it.copy(password = password) } }
 
         is Login -> Observable.fromCallable { currentState }
-                .flatMap{ loginService.loginToServer(it.username, it.password) }
-                .map { _ -> StateMapper<LoginState> { it }}
+                .flatMap { loginService.loginToServer(it.username, it.password) }
+                .map { token -> StateMapper<LoginState> { it.copy(token = token) }}
         }
     }
 
@@ -49,7 +49,7 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
     }
 
     override fun createInitialState(): LoginState =
-            LoginState(username = "", password = "")
+            LoginState()
 
     private val isFormValidObservable: Observable<Boolean>
         get() = stateObservable
