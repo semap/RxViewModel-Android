@@ -29,13 +29,9 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
 
     override fun createStateMapperObservable(action: LoginAction): Observable<StateMapper<LoginState>>? {
         return when (action) {
-        is SetUsername -> Observable.just(action)
-                .map { it.username }
-                .map { username -> StateMapper<LoginState> { it.copy(username = username) } }
+        is SetUsername -> Observable.just(StateMapper<LoginState> { it.copy(username = action.username) })
 
-        is SetPassword -> Observable.just(action)
-                .map { it.password }
-                .map { password -> StateMapper<LoginState> { it.copy(password = password) } }
+        is SetPassword -> Observable.just(StateMapper<LoginState> { it.copy(password = action.password) })
 
         is Login -> Observable.fromCallable { currentState }
                 .flatMap { loginService.loginToServer(it.username, it.password) }
