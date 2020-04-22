@@ -1,4 +1,4 @@
-# Reactive Programming with MVVM for Android apps(both Kotlon and Java)
+# Reactive Programming with MVVM for Android apps
 
 Over the past few years, we’ve been developing a number of digital products using MVVM. In particular, when used with Reactive programming, MVVM can deliver a powerful product and experience for users.
 
