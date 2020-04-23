@@ -241,13 +241,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .map { it.error }
     }
 
-    // A util method to skip the null values.
-    protected fun <T> skipNull(obj: T?): Observable<T> {
-        return if (obj == null) {
-            Observable.empty()
-        } else Observable.just(obj)
-    }
-
     private fun <O> execute(action: O, subject: Subject<O>) {
         if (!subject.hasObservers()) {
             // TODO: Log

@@ -13,6 +13,8 @@ fun <T> Observable<T>.asLiveData(viewModel: RxViewModel<*,*>): RxLiveData<T> = v
 
 
 fun <T, R> Observable<T>.skipNull(mapper: (t: T) -> R?): Observable<R> {
-    return this.map { Optional<R>(mapper.invoke(it))  }
-            .flatMap { if (it.isEmpty) Observable.empty() else Observable.just(it.get()) }
+    return this.flatMap {
+                val nullable = mapper.invoke(it)
+                if (nullable == null) Observable.empty() else Observable.just(nullable)
+            }
 }
