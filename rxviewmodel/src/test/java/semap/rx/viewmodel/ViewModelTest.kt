@@ -103,12 +103,6 @@ class ViewModelTest {
     fun sequenceTasks() {
         val viewModel = FooViewModel()
 
-        val actions = listOf(
-                FooAction.AddScore(1),
-                FooAction.AddScore(3),
-                FooAction.SetLastName("Bob"),   // this action will fail
-                FooAction.AddScore(5))
-
         val errorObserver = viewModel.errorObservable.test()
         val addScore5OnNextObserver = viewModel
                 .actionOnNextObservable(FooAction.AddScore::class.java)
@@ -121,7 +115,12 @@ class ViewModelTest {
         val setLastNameErrorObserver = viewModel.actionErrorObservable(FooAction.SetLastName::class.java)
                 .test()
 
-        viewModel.executeInSequence(actions)
+        viewModel.executeInSequence(
+                FooAction.AddScore(1),
+                FooAction.AddScore(3),
+                FooAction.SetLastName("Bob"),   // this action will fail
+                FooAction.AddScore(5))
+
         assertThat(scoreObserver.lastValue(), `is`(4))
         assertThat(setLastNameErrorObserver.valueCount(), `is`(1))
 
