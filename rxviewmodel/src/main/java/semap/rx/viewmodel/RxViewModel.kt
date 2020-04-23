@@ -167,62 +167,39 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return RxLiveData(observableWithoutError)
     }
 
+    /**
+     * Execute an action.
+     * @param action
+     */
     fun execute(action: A) {
         execute(action, executeMode(action))
     }
 
+    /**
+     * Execute an action with a specific executionMode.
+     * @param action
+     * @param mode
+     */
     fun execute(action: A, mode: ActionExecutionMode) {
         when(mode) {
-            Parallel ->  executeInParallel(action, stateMapInOrder = false, deferred = false)
-            ParallelDefer -> executeInParallel(action, stateMapInOrder = true, deferred = true)
-            Sequence -> executeInSequence(action)
-            SwitchMap -> executeWithSwitchMap(action)
-            else -> executeInParallel(action, stateMapInOrder = true, deferred = false)
-        }
-    }
-
-    private fun executeInParallel(action: A, stateMapInOrder: Boolean, deferred: Boolean) {
-
-        if (stateMapInOrder) {
-            if (!concatEagerActionSubject.hasObservers()) {
-                Handler(Looper.getMainLooper()).post { execute(DeferrableAction(action, deferred), concatEagerActionSubject) }
-            } else {
-                concatEagerActionSubject.onNext(DeferrableAction(action, deferred))
-            }
-        } else {
-            if (!concurrentActionSubject.hasObservers()) {
-                Handler(Looper.getMainLooper()).post { execute(action, concurrentActionSubject) }
-            } else {
-                concurrentActionSubject.onNext(action)
-            }
-        }
-    }
-
-    private fun executeInSequence(action: A) {
-        if (!concatEagerActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(listOf(action), sequentialActionSubject) }
-        } else {
-            sequentialActionSubject.onNext(listOf(action))
+            Parallel ->  enqueueInParallel(action, stateMapInOrder = false, deferred = false)
+            ParallelDefer -> enqueueInParallel(action, stateMapInOrder = true, deferred = true)
+            Sequence -> enqueueInSequence(action)
+            SwitchMap -> enqueueWithSwitchMap(action)
+            else -> enqueueInParallel(action, stateMapInOrder = true, deferred = false)
         }
     }
 
     /**
-     * Execute the action in sequence. The View classes create Actions and call this method to run them in sequence.
+     * Execute the actions in sequence. The View classes create Actions and call this method to run them in sequence.
+     * If an action fails, the rest of the actions will not be executed.
      * @param actions
      */
-    fun executeInSequence(actions: List<A>) {
+    fun executeInSequence(vararg actions: A) {
         if (!concatEagerActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(actions, this.sequentialActionSubject) }
+            Handler(Looper.getMainLooper()).post { execute(actions.asList(), this.sequentialActionSubject) }
         } else {
-            sequentialActionSubject.onNext(actions)
-        }
-    }
-
-    private fun executeWithSwitchMap(action: A) {
-        if (!switchMapLatestActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(action, switchMapLatestActionSubject) }
-        } else {
-            switchMapLatestActionSubject.onNext(action)
+            sequentialActionSubject.onNext(actions.asList())
         }
     }
 
@@ -269,11 +246,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return if (obj == null) {
             Observable.empty()
         } else Observable.just(obj)
-    }
-
-    // A util method to wrap a nullable object with a Optional
-    protected fun <T> toOptional(obj: T): Optional<T> {
-        return Optional(obj)
     }
 
     private fun <O> execute(action: O, subject: Subject<O>) {
@@ -331,6 +303,39 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     }
                 }
                 .subscribeOn(defaultScheduler())
+    }
+
+    private fun enqueueInParallel(action: A, stateMapInOrder: Boolean, deferred: Boolean) {
+
+        if (stateMapInOrder) {
+            if (!concatEagerActionSubject.hasObservers()) {
+                Handler(Looper.getMainLooper()).post { execute(DeferrableAction(action, deferred), concatEagerActionSubject) }
+            } else {
+                concatEagerActionSubject.onNext(DeferrableAction(action, deferred))
+            }
+        } else {
+            if (!concurrentActionSubject.hasObservers()) {
+                Handler(Looper.getMainLooper()).post { execute(action, concurrentActionSubject) }
+            } else {
+                concurrentActionSubject.onNext(action)
+            }
+        }
+    }
+
+    private fun enqueueInSequence(action: A) {
+        if (!concatEagerActionSubject.hasObservers()) {
+            Handler(Looper.getMainLooper()).post { execute(listOf(action), sequentialActionSubject) }
+        } else {
+            sequentialActionSubject.onNext(listOf(action))
+        }
+    }
+
+    private fun enqueueWithSwitchMap(action: A) {
+        if (!switchMapLatestActionSubject.hasObservers()) {
+            Handler(Looper.getMainLooper()).post { execute(action, switchMapLatestActionSubject) }
+        } else {
+            switchMapLatestActionSubject.onNext(action)
+        }
     }
 
     private fun toStateMapperObservable(action: A): Observable<StateMapper<S>> {
