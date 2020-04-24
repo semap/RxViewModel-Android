@@ -149,24 +149,24 @@ data class FooState(
 class FooViewModel: RxViewModel<FooAction, FooState>() {
     override fun createInitialState() = FooState()
 
-    override fun createStateMapperObservable(action: FooAction): Observable<StateMapper<FooState>>? {
+    override fun createReducerObservable(action: FooAction): Observable<Reducer<FooState>>? {
         return when (action) {
             is FooAction.SetFirstName ->
                     Observable.just(action.name)
-                        .map { name -> StateMapper<FooState> { it.copy(firstName = name) } }
+                        .map { name -> { s: FooState -> s.copy(firstName = name) } }
 
             is FooAction.SetLastName ->
                     Observable.just(action.name)
                         .doOnNext { throw Exception("error") }
-                        .map { name -> StateMapper<FooState> { it.copy(lastName = name) } }
+                        .map { name -> { s: FooState -> s.copy(lastName = name) } }
             FooAction.Submit ->
                 Observable.just(action)
                         .delay(100, TimeUnit.MILLISECONDS)
-                        .map { StateMapper<FooState> { it } }
+                        .map {  { s: FooState -> s } }
 
             is FooAction.AddScore ->
                 Observable.just(action.num)
-                        .map { num ->  StateMapper<FooState> { it.copy(score = it.score + num) } }
+                        .map { num ->  { s: FooState -> s.copy(score = s.score + num) } }
 
         }
     }

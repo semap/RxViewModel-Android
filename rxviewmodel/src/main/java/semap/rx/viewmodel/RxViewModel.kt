@@ -125,9 +125,9 @@ abstract class RxViewModel<A, S>: ViewModel() {
     /**
      * This is the method to tell the RxViewModel "how to change the current state" for a given action.
      * @param action the action needed to be executed
-     * @return the StateMapper (how to change the current state)
+     * @return the Reducer (how to change the current state)
      */
-    abstract fun createStateMapperObservable(action: A): Observable<StateMapper<S>>?
+    abstract fun createReducerObservable(action: A): Observable<Reducer<S>>?
 
     /**
      *
@@ -251,10 +251,10 @@ abstract class RxViewModel<A, S>: ViewModel() {
     private fun executeAndCombine(action: A, throwError: Boolean = false, deferredAction: Boolean = false): Observable<AnsWrapper> {
         return Observable.combineLatest(
                     Observable.just(action),
-                    if (deferredAction) Observable.empty() else toStateMapperObservable(action),
-                    BiFunction<A, StateMapper<S>, Pair<A, StateMapper<S>>> { a, m -> Pair(a, m) })
+                    if (deferredAction) Observable.empty() else toReducerObservable(action),
+                    BiFunction<A, Reducer<S>, Pair<A, Reducer<S>>> { a, m -> Pair(a, m) })
                 .observeOn(Schedulers.single())     // use Schedulers.single() to avoid race condition
-                .map { ActionAndState(it.first, it.second.map(currentState)) }
+                .map { ActionAndState(it.first, it.second.invoke(currentState)) }
                 .doOnNext { stateBehaviorSubject.onNext(it.state) }
                 .observeOn(defaultScheduler())
                 .map { AnsWrapper(it) }
@@ -331,14 +331,14 @@ abstract class RxViewModel<A, S>: ViewModel() {
         }
     }
 
-    private fun toStateMapperObservable(action: A): Observable<StateMapper<S>> {
+    private fun toReducerObservable(action: A): Observable<Reducer<S>> {
         return Observable.just(action)
                 .flatMap { a ->
-                    val stateMapperObservable: Observable<StateMapper<S>> =
-                            createStateMapperObservable(a) ?: Observable.just(StateMapper { it })
+                    val stateMapperObservable: Observable<Reducer<S>> =
+                            createReducerObservable(a) ?: Observable.just { s -> s }
 
                     stateMapperObservable
-                            .defaultIfEmpty(StateMapper { it })
+                            .defaultIfEmpty { s -> s }
                 }
     }
 
