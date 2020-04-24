@@ -4,7 +4,7 @@ import io.reactivex.Observable
 import semap.rx.viewmodel.ActionExecutionMode
 import semap.rx.viewmodel.ActionExecutionMode.*
 import semap.rx.viewmodel.RxViewModel
-import semap.rx.viewmodel.StateMapper
+import semap.rx.viewmodel.Reducer
 import semap.rx.viewmodel.examples.LoginService
 import semap.rx.viewmodel.examples.kotlin.LoginAction.*
 
@@ -27,15 +27,15 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
 
     // *** End of LiveData ***
 
-    override fun createStateMapperObservable(action: LoginAction): Observable<StateMapper<LoginState>>? {
+    override fun createReducerObservable(action: LoginAction): Observable<Reducer<LoginState>>? {
         return when (action) {
-        is SetUsername -> Observable.just(StateMapper<LoginState> { it.copy(username = action.username) })
+        is SetUsername -> Observable.just { oldState -> oldState.copy(username = action.username) }
 
-        is SetPassword -> Observable.just(StateMapper<LoginState> { it.copy(password = action.password) })
+        is SetPassword -> Observable.just { oldState -> oldState.copy(password = action.password) }
 
         is Login -> Observable.fromCallable { currentState }
                 .flatMap { loginService.loginToServer(it.username, it.password) }
-                .map { token -> StateMapper<LoginState> { it.copy(token = token) }}
+                .map { token -> { oldState: LoginState -> oldState.copy(token = token) } }
         }
     }
 
