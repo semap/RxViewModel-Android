@@ -82,7 +82,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
         val concurrent = concurrentActionSubject.flatMap { executeAndCombine(it) }
         val concatEager = concatEagerActionSubject.concatMapEager { executeAndCombine(it.action, throwError = false, deferredAction = it.isDeferred) }
         val flatMapLatest = switchMapLatestActionSubject.switchMap { executeAndCombine(it) }
-        val deferred = deferredActionSubject.concatMapEager { executeAndCombine(it) }
+        val deferred = deferredActionSubject.concatMap { executeAndCombine(it) }
 
         this.wrapperObservable = Observable
                 .merge(listOf(sequential, concatEager, concurrent, flatMapLatest, deferred))
