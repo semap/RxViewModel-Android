@@ -22,7 +22,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
     val currentState: S
         get() = stateBehaviorSubject.value ?: createInitialState()
 
-
     /**
      * Observable of State, it will replay
      */
@@ -75,9 +74,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .concatMap { list ->
                     Observable.fromIterable(list)
                         .concatMap { executeAndCombine(it, true) }
-                        .onErrorResumeNext { _: Throwable ->
-                            Observable.empty<AnsWrapper>()
-                        }
+                        .onErrorResumeNext { _: Throwable -> Observable.empty<AnsWrapper>() }
                 }
         val concurrent = concurrentActionSubject.flatMap { executeAndCombine(it) }
         val concatEager = concatEagerActionSubject.concatMapEager { executeAndCombine(it.action, throwError = false, deferredAction = it.isDeferred) }
@@ -88,7 +85,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .merge(listOf(sequential, concatEager, concurrent, flatMapLatest, deferred))
                 .share()
 
-        actionOnCompleteObservable = this.wrapperObservable
+        this.actionOnCompleteObservable = this.wrapperObservable
                 .filter { it.isComplete }
                 .map { it.actionAndState }
 
@@ -201,10 +198,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
         } else {
             sequentialActionSubject.onNext(actions.asList())
         }
-    }
-
-    fun isLoadingObservable(): Observable<Boolean> {
-        return loadingObservable
     }
 
     fun <T> Observable<T>.asLiveData(): RxLiveData<T> {
