@@ -18,3 +18,17 @@ fun <T, R> Observable<T>.skipNull(mapper: (t: T) -> R?): Observable<R> {
                 if (nullable == null) Observable.empty() else Observable.just(nullable)
             }
 }
+
+fun <A>Observable<out A>.execute(viewModel: RxViewModel<A, *>, lifecycleOwner: LifecycleOwner) {
+    return asLiveData(viewModel)
+            .observe(lifecycleOwner) {
+                viewModel.execute(it)
+            }
+}
+
+fun <A>Observable<out A>.execute(viewModel: RxViewModel<A, *>, lifecycleOwner: LifecycleOwner, executionMode: ActionExecutionMode) {
+    return asLiveData(viewModel)
+            .observe(lifecycleOwner) {
+                viewModel.execute(it, executionMode)
+            }
+}
