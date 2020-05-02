@@ -14,6 +14,7 @@ import kotlinx.android.synthetic.main.activity_login.*
 import semap.rx.R
 import semap.rx.viewmodel.asLiveData
 import semap.rx.viewmodel.examples.kotlin.LoginAction.*
+import semap.rx.viewmodel.execute
 import semap.rx.viewmodel.observe
 
 class LoginActivity: AppCompatActivity() {
@@ -38,23 +39,18 @@ class LoginActivity: AppCompatActivity() {
         signInButton.clicks()
                 .map { Login }
                 .doAfterNext { this.closeKeyboard() }
-                .asLiveData(viewModel)
-                .observe(this, viewModel::execute)
+                .execute(viewModel, this)
 
         email.textChanges()
                 .skipInitialValue()
-                .map { it.toString() }
-                .map(::SetUsername)
-                .asLiveData(viewModel)
-                .observe(this, viewModel::execute)
+                .map { SetUsername(it.toString()) }
+                .execute(viewModel, this)
+
 
         password.textChanges()
                 .skipInitialValue()
-                .map { it.toString() }
-                .map (::SetPassword)
-                .asLiveData(viewModel)
-                .observe(this, viewModel::execute)
-
+                .map { SetPassword(it.toString()) }
+                .execute(viewModel, this)
     }
 
     private fun bindViewModelToView() {
