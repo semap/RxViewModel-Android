@@ -9,7 +9,7 @@ android {
 
 
     defaultConfig {
-        minSdkVersion 19
+        minSdkVersion 14
         targetSdkVersion 28
         versionCode 1
         versionName "1.0"
@@ -70,7 +70,7 @@ dependencies {
 publish {
     def groupProjectID = 'semap.rx'
     def artifactProjectID = 'rxviewmodel'
-    def publishVersionID = '1.0.1'
+    def publishVersionID = '1.0.2'
 
     userOrg = 'semap'
     repoName = 'rx'

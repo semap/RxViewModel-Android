@@ -7,7 +7,7 @@ android {
     buildToolsVersion "29.0.2"
     defaultConfig {
         applicationId "semap.rx"
-        minSdkVersion 19
+        minSdkVersion 14
         targetSdkVersion 28
         versionCode 1
         versionName "1.0"
