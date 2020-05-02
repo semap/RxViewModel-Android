@@ -1,6 +1,7 @@
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+apply plugin: 'com.novoda.bintray-release'
 
 android {
     compileSdkVersion 28
@@ -64,4 +65,18 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.ext:truth:1.2.0'
     androidTestImplementation 'com.google.truth:truth:0.42'
+}
+
+publish {
+    def groupProjectID = 'semap.rx'
+    def artifactProjectID = 'rxviewmodel'
+    def publishVersionID = '1.0.0'
+
+    userOrg = 'semap'
+    repoName = 'rx'
+    groupId = groupProjectID
+    artifactId = artifactProjectID
+    publishVersion = publishVersionID
+    desc = 'RxViewModel'
+    website = 'https://github.com/semap/RxViewModel-Android'
 }
