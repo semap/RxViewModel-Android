@@ -81,7 +81,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
 
         this.wrapperObservable = Observable
                 .merge(listOf(sequential, concatEager, concurrent, flatMapLatest, deferred))
-                .share()
+                .publish()
+                .autoConnect()
 
         this.actionOnCompleteObservable = this.wrapperObservable
                 .filter { it.isComplete }
