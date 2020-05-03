@@ -1,7 +1,5 @@
 package semap.rx.viewmodel
 
-import android.os.Handler
-import android.os.Looper
 import androidx.lifecycle.ViewModel
 import io.reactivex.Notification
 import io.reactivex.Observable
@@ -104,10 +102,15 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .map { count -> count > 0 }
                 .startWith(false)
                 .distinctUntilChanged()
+                .withLatestFrom(stateObservable,
+                        BiFunction<Boolean, S, Boolean> { b, _ -> b })
                 .replay(1)
                 .autoConnect()
 
-        this.actionErrorObservable = errorSubject.hide()
+        this.actionErrorObservable = errorSubject
+                .hide()
+                .withLatestFrom(stateObservable,
+                        BiFunction<ActionAndError<A>, S, ActionAndError<A>> { ans, _ -> ans })
 
         this.errorObservable = this.actionErrorObservable
                 .map { (_, error) -> error }
@@ -193,11 +196,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * @param actions
      */
     fun executeInSequence(vararg actions: A) {
-        if (!concatEagerActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(actions.asList(), this.sequentialActionSubject) }
-        } else {
-            sequentialActionSubject.onNext(actions.asList())
-        }
+        assertHavingObserver(sequentialActionSubject)
+        sequentialActionSubject.onNext(actions.asList())
     }
 
     fun <T> Observable<T>.asLiveData(): RxLiveData<T> {
@@ -232,13 +232,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return this.actionErrorObservable
                 .filter { clazz.isInstance(it.action) }
                 .map { it.error }
-    }
-
-    private fun <O> execute(action: O, subject: Subject<O>) {
-        if (!subject.hasObservers()) {
-            // TODO: Log
-        }
-        subject.onNext(action)
     }
 
     private fun executeAndCombine(action: A, throwError: Boolean = false, deferredAction: Boolean = false): Observable<AnsWrapper> {
@@ -292,36 +285,23 @@ abstract class RxViewModel<A, S>: ViewModel() {
     }
 
     private fun enqueueInParallel(action: A, stateMapInOrder: Boolean, deferred: Boolean) {
-
         if (stateMapInOrder) {
-            if (!concatEagerActionSubject.hasObservers()) {
-                Handler(Looper.getMainLooper()).post { execute(DeferrableAction(action, deferred), concatEagerActionSubject) }
-            } else {
-                concatEagerActionSubject.onNext(DeferrableAction(action, deferred))
-            }
+            assertHavingObserver(concatEagerActionSubject)
+            concatEagerActionSubject.onNext(DeferrableAction(action, deferred))
         } else {
-            if (!concurrentActionSubject.hasObservers()) {
-                Handler(Looper.getMainLooper()).post { execute(action, concurrentActionSubject) }
-            } else {
-                concurrentActionSubject.onNext(action)
-            }
+            assertHavingObserver(concurrentActionSubject)
+            concurrentActionSubject.onNext(action)
         }
     }
 
     private fun enqueueInSequence(action: A) {
-        if (!concatEagerActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(listOf(action), sequentialActionSubject) }
-        } else {
-            sequentialActionSubject.onNext(listOf(action))
-        }
+        assertHavingObserver(sequentialActionSubject)
+        sequentialActionSubject.onNext(listOf(action))
     }
 
     private fun enqueueWithSwitchMap(action: A) {
-        if (!switchMapLatestActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(action, switchMapLatestActionSubject) }
-        } else {
-            switchMapLatestActionSubject.onNext(action)
-        }
+        assertHavingObserver(switchMapLatestActionSubject)
+        switchMapLatestActionSubject.onNext(action)
     }
 
     private fun toReducerObservable(action: A): Observable<Reducer<S>> {
@@ -333,6 +313,11 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     stateMapperObservable
                             .defaultIfEmpty { s -> s }
                 }
+    }
+
+    private inline fun assertHavingObserver(subject: Subject<*>) {
+        if (!subject.hasObservers())
+            throw IllegalStateException("ViewModel needs at lease one observer before executing any action")
     }
 
     private inner class AnsWrapper(val actionAndState: ActionAndState<A, S>, val isComplete: Boolean = false)
