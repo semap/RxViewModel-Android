@@ -1,7 +1,5 @@
 package semap.rx.viewmodel
 
-import android.os.Handler
-import android.os.Looper
 import androidx.lifecycle.ViewModel
 import io.reactivex.Notification
 import io.reactivex.Observable
@@ -11,7 +9,7 @@ import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.ReplaySubject
-import io.reactivex.subjects.Subject
+import io.reactivex.subjects.UnicastSubject
 import semap.rx.viewmodel.ActionExecutionMode.*
 
 abstract class RxViewModel<A, S>: ViewModel() {
@@ -55,10 +53,10 @@ abstract class RxViewModel<A, S>: ViewModel() {
     /**
      * The inputs (the publishEvent subjects that accepts actions) of the RxViewModel
      */
-    private val concatEagerActionSubject = PublishSubject.create<DeferrableAction>().toSerialized()
-    private val concurrentActionSubject = PublishSubject.create<A>().toSerialized()
-    private val sequentialActionSubject = PublishSubject.create<List<A>>().toSerialized()
-    private val switchMapLatestActionSubject = PublishSubject.create<A>().toSerialized()
+    private val concatEagerActionSubject = UnicastSubject.create<DeferrableAction>().toSerialized()
+    private val concurrentActionSubject = UnicastSubject.create<A>().toSerialized()
+    private val sequentialActionSubject = UnicastSubject.create<List<A>>().toSerialized()
+    private val switchMapLatestActionSubject = UnicastSubject.create<A>().toSerialized()
     private val deferredActionSubject = PublishSubject.create<A>().toSerialized()
 
     /**
@@ -198,11 +196,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * @param actions
      */
     fun executeInSequence(vararg actions: A) {
-        if (!sequentialActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(actions.asList(), this.sequentialActionSubject) }
-        } else {
-            sequentialActionSubject.onNext(actions.asList())
-        }
+        sequentialActionSubject.onNext(actions.asList())
     }
 
     fun <T> Observable<T>.asLiveData(): RxLiveData<T> {
@@ -237,13 +231,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return this.actionErrorObservable
                 .filter { clazz.isInstance(it.action) }
                 .map { it.error }
-    }
-
-    private fun <O> execute(action: O, subject: Subject<O>) {
-        if (!subject.hasObservers()) {
-            // TODO: Log
-        }
-        subject.onNext(action)
     }
 
     private fun executeAndCombine(action: A, throwError: Boolean = false, deferredAction: Boolean = false): Observable<AnsWrapper> {
@@ -297,36 +284,19 @@ abstract class RxViewModel<A, S>: ViewModel() {
     }
 
     private fun enqueueInParallel(action: A, stateMapInOrder: Boolean, deferred: Boolean) {
-
         if (stateMapInOrder) {
-            if (!concatEagerActionSubject.hasObservers()) {
-                Handler(Looper.getMainLooper()).post { execute(DeferrableAction(action, deferred), concatEagerActionSubject) }
-            } else {
-                concatEagerActionSubject.onNext(DeferrableAction(action, deferred))
-            }
+            concatEagerActionSubject.onNext(DeferrableAction(action, deferred))
         } else {
-            if (!concurrentActionSubject.hasObservers()) {
-                Handler(Looper.getMainLooper()).post { execute(action, concurrentActionSubject) }
-            } else {
-                concurrentActionSubject.onNext(action)
-            }
+            concurrentActionSubject.onNext(action)
         }
     }
 
     private fun enqueueInSequence(action: A) {
-        if (!concatEagerActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(listOf(action), sequentialActionSubject) }
-        } else {
-            sequentialActionSubject.onNext(listOf(action))
-        }
+        sequentialActionSubject.onNext(listOf(action))
     }
 
     private fun enqueueWithSwitchMap(action: A) {
-        if (!switchMapLatestActionSubject.hasObservers()) {
-            Handler(Looper.getMainLooper()).post { execute(action, switchMapLatestActionSubject) }
-        } else {
-            switchMapLatestActionSubject.onNext(action)
-        }
+        switchMapLatestActionSubject.onNext(action)
     }
 
     private fun toReducerObservable(action: A): Observable<Reducer<S>> {
