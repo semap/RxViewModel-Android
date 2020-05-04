@@ -23,32 +23,64 @@ abstract class RxViewModel<A, S>: ViewModel() {
     /**
      * Observable of State, it will replay
      */
-    val stateObservable: Observable<S>
+    val stateObservable: Observable<S> by lazy {
+        actionOnNextObservable
+                .map { it.state }
+                .startWith(Observable.fromCallable { createInitialState() })
+                .replay(1)
+                .autoConnect()
+    }
 
     /**
      * Observable of loading, it will replay
      */
-    val loadingObservable: Observable<Boolean>
+    val loadingObservable: Observable<Boolean> by lazy {
+        loadingCount
+                .scan { x, y -> x + y }
+                .map { count -> count > 0 }
+                .startWith(false)
+                .distinctUntilChanged()
+                .withLatestFrom(stateObservable,
+                        BiFunction<Boolean, S, Boolean> { b, _ -> b })
+                .replay(1)
+                .autoConnect()
+    }
 
     /**
      * Observable of ActionAndState, it does NOT replay
      */
-    val actionOnNextObservable: Observable<ActionAndState<A, S>>
+    val actionOnNextObservable: Observable<ActionAndState<A, S>> by lazy {
+        this.wrapperObservable
+                .filter { !it.isComplete }
+                .map { it.actionAndState }
+    }
 
     /**
      * Observable of ActionAndState, it does NOT replay
      */
-    val actionOnCompleteObservable: Observable<ActionAndState<A, S>>
+    val actionOnCompleteObservable: Observable<ActionAndState<A, S>> by lazy {
+        this.wrapperObservable
+                .filter { it.isComplete }
+                .map { it.actionAndState }
+    }
+
+    /**
+     * Observable of ActionAndState, it does NOT replay
+     */
+    val actionErrorObservable: Observable<ActionAndError<A>> by lazy {
+        errorSubject
+                .hide()
+                .withLatestFrom(stateObservable,
+                        BiFunction<ActionAndError<A>, S, ActionAndError<A>> { ans, _ -> ans })
+    }
 
     /**
      * Observable of Error, it does NOT replay
      */
-    val errorObservable: Observable<Throwable>
-
-    /**
-     * Observable of ActionAndState, it does NOT replay
-     */
-    val actionErrorObservable: Observable<ActionAndError<A>>
+    val errorObservable: Observable<Throwable> by lazy {
+        this.actionErrorObservable
+                .map { (_, error) -> error }
+    }
 
     /**
      * The inputs (the publishEvent subjects that accepts actions) of the RxViewModel
@@ -65,56 +97,23 @@ abstract class RxViewModel<A, S>: ViewModel() {
     private val stateBehaviorSubject = BehaviorSubject.create<S>()
     private val errorSubject = PublishSubject.create<ActionAndError<A>>().toSerialized()
     private val loadingCount = ReplaySubject.create<Int>().toSerialized()
-    private val wrapperObservable: Observable<AnsWrapper>
-
-    init {
+    private val wrapperObservable: Observable<AnsWrapper> by lazy {
         val sequential = sequentialActionSubject
                 .concatMap { list ->
                     Observable.fromIterable(list)
-                        .concatMap { executeAndCombine(it, true) }
-                        .onErrorResumeNext { _: Throwable -> Observable.empty<AnsWrapper>() }
+                            .concatMap { executeAndCombine(it, true) }
+                            .onErrorResumeNext { _: Throwable -> Observable.empty<AnsWrapper>() }
                 }
         val concurrent = concurrentActionSubject.flatMap { executeAndCombine(it) }
         val concatEager = concatEagerActionSubject.concatMapEager { executeAndCombine(it.action, throwError = false, deferredAction = it.isDeferred) }
         val flatMapLatest = switchMapLatestActionSubject.switchMap { executeAndCombine(it) }
         val deferred = deferredActionSubject.concatMap { executeAndCombine(it) }
 
-        this.wrapperObservable = Observable
+        Observable
                 .merge(listOf(sequential, concatEager, concurrent, flatMapLatest, deferred))
+                .subscribeOn(defaultScheduler())
                 .publish()
                 .autoConnect()
-
-        this.actionOnCompleteObservable = this.wrapperObservable
-                .filter { it.isComplete }
-                .map { it.actionAndState }
-
-        this.actionOnNextObservable = this.wrapperObservable
-                .filter { !it.isComplete }
-                .map { it.actionAndState }
-
-        this.stateObservable = actionOnNextObservable
-                .map { it.state }
-                .startWith(Observable.fromCallable { createInitialState() })
-                .replay(1)
-                .autoConnect()
-
-        this.loadingObservable = loadingCount
-                .scan { x, y -> x + y }
-                .map { count -> count > 0 }
-                .startWith(false)
-                .distinctUntilChanged()
-                .withLatestFrom(stateObservable,
-                        BiFunction<Boolean, S, Boolean> { b, _ -> b })
-                .replay(1)
-                .autoConnect()
-
-        this.actionErrorObservable = errorSubject
-                .hide()
-                .withLatestFrom(stateObservable,
-                        BiFunction<ActionAndError<A>, S, ActionAndError<A>> { ans, _ -> ans })
-
-        this.errorObservable = this.actionErrorObservable
-                .map { (_, error) -> error }
     }
 
     /**
