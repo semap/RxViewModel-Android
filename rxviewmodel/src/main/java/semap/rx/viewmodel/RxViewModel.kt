@@ -24,8 +24,15 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * Observable of State, it will replay
      */
     val stateObservable: Observable<S> by lazy {
-        actionOnNextObservable
-                .map { it.state }
+        this.wrapperObservable
+                .doOnNext {
+                    if (it.isComplete) actionOnCompleteSubject.onNext(it.actionAndState)
+                    else {
+                        actionOnNextSubject.onNext(it.actionAndState)
+                    }
+                }
+                .filter { !it.isComplete }
+                .map { it.actionAndState.state }
                 .startWith(Observable.fromCallable { createInitialState() })
                 .replay(1)
                 .autoConnect()
@@ -50,18 +57,18 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * Observable of ActionAndState, it does NOT replay
      */
     val actionOnNextObservable: Observable<ActionAndState<A, S>> by lazy {
-        this.wrapperObservable
-                .filter { !it.isComplete }
-                .map { it.actionAndState }
+        this.actionOnNextSubject.hide()
+                .withLatestFrom(stateObservable,
+                        BiFunction<ActionAndState<A, S>, S, ActionAndState<A, S>> { ans, _ -> ans })
     }
 
     /**
      * Observable of ActionAndState, it does NOT replay
      */
     val actionOnCompleteObservable: Observable<ActionAndState<A, S>> by lazy {
-        this.wrapperObservable
-                .filter { it.isComplete }
-                .map { it.actionAndState }
+        this.actionOnCompleteSubject.hide()
+                .withLatestFrom(stateObservable,
+                        BiFunction<ActionAndState<A, S>, S, ActionAndState<A, S>> { ans, _ -> ans })
     }
 
     /**
@@ -97,6 +104,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
     private val stateBehaviorSubject = BehaviorSubject.create<S>()
     private val errorSubject = PublishSubject.create<ActionAndError<A>>().toSerialized()
     private val loadingCount = ReplaySubject.create<Int>().toSerialized()
+    private val actionOnNextSubject = PublishSubject.create<ActionAndState<A, S>>().toSerialized()
+    private val actionOnCompleteSubject = PublishSubject.create<ActionAndState<A, S>>().toSerialized()
     private val wrapperObservable: Observable<AnsWrapper> by lazy {
         val sequential = sequentialActionSubject
                 .concatMap { list ->
