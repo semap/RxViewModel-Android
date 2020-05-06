@@ -43,6 +43,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
      */
     val loadingObservable: Observable<Boolean> by lazy {
         loadingCount
+                .observeOn(defaultScheduler())
                 .scan { x, y -> x + y }
                 .map { count -> count > 0 }
                 .startWith(false)
@@ -57,7 +58,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * Observable of ActionAndState, it does NOT replay
      */
     val actionOnNextObservable: Observable<ActionAndState<A, S>> by lazy {
-        this.actionOnNextSubject.hide()
+        this.actionOnNextSubject
+                .observeOn(defaultScheduler())
                 .withLatestFrom(stateObservable,
                         BiFunction<ActionAndState<A, S>, S, ActionAndState<A, S>> { ans, _ -> ans })
     }
@@ -66,7 +68,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * Observable of ActionAndState, it does NOT replay
      */
     val actionOnCompleteObservable: Observable<ActionAndState<A, S>> by lazy {
-        this.actionOnCompleteSubject.hide()
+        this.actionOnCompleteSubject
+                .observeOn(defaultScheduler())
                 .withLatestFrom(stateObservable,
                         BiFunction<ActionAndState<A, S>, S, ActionAndState<A, S>> { ans, _ -> ans })
     }
@@ -76,7 +79,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
      */
     val actionErrorObservable: Observable<ActionAndError<A>> by lazy {
         errorSubject
-                .hide()
+                .observeOn(defaultScheduler())
                 .withLatestFrom(stateObservable,
                         BiFunction<ActionAndError<A>, S, ActionAndError<A>> { ans, _ -> ans })
     }
@@ -107,20 +110,29 @@ abstract class RxViewModel<A, S>: ViewModel() {
     private val actionOnNextSubject = PublishSubject.create<ActionAndState<A, S>>().toSerialized()
     private val actionOnCompleteSubject = PublishSubject.create<ActionAndState<A, S>>().toSerialized()
     private val wrapperObservable: Observable<AnsWrapper> by lazy {
+        val scheduler = defaultScheduler()
         val sequential = sequentialActionSubject
+                .observeOn(scheduler)
                 .concatMap { list ->
                     Observable.fromIterable(list)
                             .concatMap { executeAndCombine(it, true) }
                             .onErrorResumeNext { _: Throwable -> Observable.empty<AnsWrapper>() }
                 }
-        val concurrent = concurrentActionSubject.flatMap { executeAndCombine(it) }
-        val concatEager = concatEagerActionSubject.concatMapEager { executeAndCombine(it.action, throwError = false, deferredAction = it.isDeferred) }
-        val flatMapLatest = switchMapLatestActionSubject.switchMap { executeAndCombine(it) }
-        val deferred = deferredActionSubject.concatMap { executeAndCombine(it) }
+        val concurrent = concurrentActionSubject
+                .observeOn(scheduler)
+                .flatMap { executeAndCombine(it) }
+        val concatEager = concatEagerActionSubject
+                .observeOn(scheduler)
+                .concatMapEager { executeAndCombine(it.action, throwError = false, deferredAction = it.isDeferred) }
+        val flatMapLatest = switchMapLatestActionSubject
+                .observeOn(scheduler)
+                .switchMap { executeAndCombine(it) }
+        val deferred = deferredActionSubject
+                .observeOn(scheduler)
+                .concatMap { executeAndCombine(it) }
 
         Observable
                 .merge(listOf(sequential, concatEager, concurrent, flatMapLatest, deferred))
-                .subscribeOn(defaultScheduler())
                 .publish()
                 .autoConnect()
     }

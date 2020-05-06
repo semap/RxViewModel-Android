@@ -70,7 +70,7 @@ dependencies {
 publish {
     def groupProjectID = 'semap.rx'
     def artifactProjectID = 'rxviewmodel'
-    def publishVersionID = '1.1.1'
+    def publishVersionID = '1.1.2'
 
     userOrg = 'semap'
     repoName = 'rx'
