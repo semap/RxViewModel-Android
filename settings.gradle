@@ -1,1 +1,3 @@
-include ':app', ':rxviewmodel'
+include ':example-activity', ':example-fragment', ':rxviewmodel'
+project(':example-activity').projectDir = file("./examples/activity")
+project(':example-fragment').projectDir = file("./examples/fragment")
