@@ -195,23 +195,36 @@ The return value can be one of below.
  - **SwitchMap**
 
 For example, User execute three actions A1, A2 and then A3 really really quick. And those actions will modify the username of the state (via reducer)
-	A1("ab") 
-	A2("abc")
-	A3("abcd")
+ - A1, it takes 100 ms to execute. It will set the username to ab 
+ - A2, it takes 20 ms to execute. It will set the username to abc 
+ - A3, it takes 60 ms to execute. It will set the username to abcd 
+
+![Diagram](images/3actions.png)
+
 
 ### ParallelDefault
 This is the default execution mode. A1,  A2, A3 will be executed in parallel, but the ViewModel will keep the order for their reducers (the function that modify the state). So the username in the state will be set to "ab" first and then set to "abc", and finally "abcd", no matter the speed of those actions.
 
 The drawback of this is that if A1 takes too long to run, it will block the reducer of A2.
 
+![Diagram](images/ParallelDefault.png)
+
 ### Parallel
-A1 and A2 will be executed in parallel. The order of reducers is not guaranteed. So the final username can be "ab" or "abc". 
+A1, A2 and A3 will be executed in parallel. The order of reducers is not guaranteed. So the final username can be "ab", "abc" or "abcd". And in this case, the the final value of username is "abcd". 
+
+![Diagram](images/Parallel.png)
 
 ### ParallelDefer
 If we execute A1, A2 in **ParallelDefault**, and execute A3 in **ParallelDefer**. A3 will not be executed until A1 and A2's reducers done modifying the state. We use this to make sure that when execute A3, we already collect the state that changed by A1 and A2. For example, A1, A2 are setting data, A3 is making a API call (by the input data from A1 and A2)
 
+![Diagram](images/ParallelDefer.png)
+
 ### Sequence
 A1, A2, A3 are executed in sequence. So after A1 modify the username to "ab", A2 starts to execute, and A3 will wait for A2 changes the state.
 
+![Diagram](images/Sequence.png)
+
 ### SwitchMap
 When executing A2, A1 will be cancelled if A1 is not finished. And same for A3, if A2 is not finished, A2 will be cancelled. We usually use it for search function,  we don't need the results of the previous search if it is not finished.
+
+![Diagram](images/SwitchMap.png)
