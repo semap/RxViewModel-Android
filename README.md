@@ -188,9 +188,9 @@ The return value can be one of below.
  - **SwitchMap**
 
 For example, User execute three actions A1, A2 and then A3 really really quick. And those actions will modify the username of the state (via reducer)
- - A1, it takes 100 ms to execute. The reducer will set the username to ab 
- - A2, it takes 20 ms to execute. The reducer will set the username to abc 
- - A3, it takes 60 ms to execute. The reducer will set the username to abcd 
+ - A1, it takes 100 ms to execute. The reducer will set the username to "a" 
+ - A2, it takes 20 ms to execute. The reducer will set the username to "ab" 
+ - A3, it takes 60 ms to execute. The reducer will set the username to "abc" 
 
 ![Diagram](images/3actions.png)
 
@@ -198,37 +198,37 @@ For example, User execute three actions A1, A2 and then A3 really really quick. 
 ### ParallelDefault
 This is the default execution mode. A1,  A2, A3 will be executed in parallel, but the ViewModel will keep the same order for their reducers (the function that modify the state). 
 
-The history of username: "ab" -> "abc" -> "abcd"
+The history of username: "a" -> "ab" -> "abc"
 
 The drawback of this is that if A1 takes too long to run, it will block the reducer of A2 and A3.
 
 ![Diagram](images/ParallelDefault.png)
 
 ### Parallel
-A1, A2 and A3 will be executed in parallel. The order of reducers is not guaranteed. So the final username can be "ab", "abc" or "abcd". And in this case, the the final value of username is "abcd". 
+A1, A2 and A3 will be executed in parallel. The order of reducers is NOT guaranteed. So the final username can be "a", "ab" or "abc". And in this case, the the final value of username is "abc". 
 
-The history of username: "abc" -> "ab" -> "abcd"
+The history of username: "ab" -> "a" -> "abc"
 
 ![Diagram](images/Parallel.png)
 
 ### ParallelDefer
 If we execute A1, A2 in **ParallelDefault**, and execute A3 in **ParallelDefer**. A3 will not be executed until A1 and A2's reducers done modifying the state. We use this to make sure that when execute A3, we already collect the state that changed by A1 and A2. For example, A1, A2 are setting data, A3 is making a API call (by the input data from A1 and A2)
 
-The history of username: "ab" -> "abc" -> "abcd"
+The history of username: "a" -> "ab" -> "abc"
 
 ![Diagram](images/ParallelDefer.png)
 
 ### Sequence
-A1, A2, A3 are executed in sequence. So after A1 modify the username to "ab", A2 starts to execute, and A3 will wait for A2 changes the state.
+A1, A2, A3 are executed in sequence. So after A1 modify the username to "a", A2 starts to execute, and A3 will wait for A2 changes the state.
 
-The history of username: "ab" -> "abc" -> "abcd"
+The history of username: "a" -> "ab" -> "abc"
 
 ![Diagram](images/Sequence.png)
 
 ### SwitchMap
 When executing A2, A1 will be cancelled if A1 is not finished. And same for A3, if A2 is not finished, A2 will be cancelled. We usually use it for search function,  we don't need the results of the previous search if it is not finished.
 
-The history of username: "abc" -> "abcd"
+The history of username: "ab" -> "abc"
 
 ![Diagram](images/SwitchMap.png)
 
