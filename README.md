@@ -10,13 +10,13 @@ The concept is simple, it has 4 major parts
 ![Diagram](images/diagram.png)
 
 
-## Use the library
+## Use the Library
 Add the library below to your app's build.gradle.  
 ```
 	implementation 'semap.rx:rxviewmodel:1.1.2'
 ```
 
-##  Example of how to use it
+##  Example of How to Use It
 Below are the steps to use it. We take the login as an example. User needs to input username (min length 5) and password (min length 3) to login.
 ### State
 Since we allow user to input username and password. So we can define a data class below.
@@ -118,7 +118,7 @@ val signInSuccessfully
 ```
 RxViewModel provides a function  `asLiveData` in the ViewModel for you to convert observable to LiveData, it will also automatically dispose the observable for you. It also handles errors (errors will be emitted in the errorObservable and actionErrorObservable)
 
-### View - part 1 - ask ViewModel to execute actions
+### View - Part 1 - Ask ViewModel to Execute Actions
 In the view, when user inputs username, we ask ViewModel to execute and action called **SetUsername**.  Similarly, we do the same for password and signIn button.
 ```
 signInButton.clicks()  
@@ -140,7 +140,7 @@ signInButton.setOnClickListener {
     viewModel.execute(Login)  
 }
 ```
-### View - part 2 - render data 
+### View - Part 2 - Render Data 
 All the observables should be converted into LiveData before View observe them (see the **asLiveData** function in the ViewModel section)
 ```
 viewModel.isLoading
@@ -155,7 +155,6 @@ viewModel.error
 viewModel.signInSuccessfully  
         .observe(this, ::showDialog } 
 ```
-
 
 ## Benefits
 
@@ -173,13 +172,7 @@ At beginning, It seems overwhelming to use this library. But when the ViewModel 
 
 Over the past few years, we’ve been developing a number of digital products using MVVM. In particular, when used with Reactive programming, MVVM can deliver a powerful product and experience for users.  
   
- # More information 
-
- - You can read [this article](https://medium.com/aeqdigital/reactive-programming-with-mvvm-for-mobile-apps-9d5476f9ecc7) to have a deeper look.
- - [The full login activity example](examples/activity)
- - [An example of fragments](examples/fragment) (with Navigation component from Android Architecture Components)
-
-
+  
 # Advanced topic - ActionExecutionMode
 Each action in ViewModel will become a observable of reducers. By default, those observables are executed in parallel, but you can override a viewModel functions to custom it.
 ```
@@ -195,36 +188,54 @@ The return value can be one of below.
  - **SwitchMap**
 
 For example, User execute three actions A1, A2 and then A3 really really quick. And those actions will modify the username of the state (via reducer)
- - A1, it takes 100 ms to execute. It will set the username to ab 
- - A2, it takes 20 ms to execute. It will set the username to abc 
- - A3, it takes 60 ms to execute. It will set the username to abcd 
+ - A1, it takes 100 ms to execute. The reducer will set the username to ab 
+ - A2, it takes 20 ms to execute. The reducer will set the username to abc 
+ - A3, it takes 60 ms to execute. The reducer will set the username to abcd 
 
 ![Diagram](images/3actions.png)
 
 
 ### ParallelDefault
-This is the default execution mode. A1,  A2, A3 will be executed in parallel, but the ViewModel will keep the order for their reducers (the function that modify the state). So the username in the state will be set to "ab" first and then set to "abc", and finally "abcd", no matter the speed of those actions.
+This is the default execution mode. A1,  A2, A3 will be executed in parallel, but the ViewModel will keep the same order for their reducers (the function that modify the state). 
 
-The drawback of this is that if A1 takes too long to run, it will block the reducer of A2.
+The history of username: "ab" -> "abc" -> "abcd"
+
+The drawback of this is that if A1 takes too long to run, it will block the reducer of A2 and A3.
 
 ![Diagram](images/ParallelDefault.png)
 
 ### Parallel
 A1, A2 and A3 will be executed in parallel. The order of reducers is not guaranteed. So the final username can be "ab", "abc" or "abcd". And in this case, the the final value of username is "abcd". 
 
+The history of username: "abc" -> "ab" -> "abcd"
+
 ![Diagram](images/Parallel.png)
 
 ### ParallelDefer
 If we execute A1, A2 in **ParallelDefault**, and execute A3 in **ParallelDefer**. A3 will not be executed until A1 and A2's reducers done modifying the state. We use this to make sure that when execute A3, we already collect the state that changed by A1 and A2. For example, A1, A2 are setting data, A3 is making a API call (by the input data from A1 and A2)
+
+The history of username: "ab" -> "abc" -> "abcd"
 
 ![Diagram](images/ParallelDefer.png)
 
 ### Sequence
 A1, A2, A3 are executed in sequence. So after A1 modify the username to "ab", A2 starts to execute, and A3 will wait for A2 changes the state.
 
+The history of username: "ab" -> "abc" -> "abcd"
+
 ![Diagram](images/Sequence.png)
 
 ### SwitchMap
 When executing A2, A1 will be cancelled if A1 is not finished. And same for A3, if A2 is not finished, A2 will be cancelled. We usually use it for search function,  we don't need the results of the previous search if it is not finished.
 
+The history of username: "abc" -> "abcd"
+
 ![Diagram](images/SwitchMap.png)
+
+
+ # More information 
+
+ - You can read [this article](https://medium.com/aeqdigital/reactive-programming-with-mvvm-for-mobile-apps-9d5476f9ecc7) to have a deeper look.
+ - [The full login activity example](examples/activity)
+ - [An example of fragments](examples/fragment) (with Navigation component from Android Architecture Components)
+
