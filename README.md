@@ -1,8 +1,5 @@
 # RxViewModel for Android - Making Reactive MVVM easier
 
-
-
-
 The concept is simple, it has 4 major parts
 
  - **State**. Single source of truth. It is a **data class** that holds **all the data**.
@@ -160,7 +157,7 @@ viewModel.signInSuccessfully
 ```
 
 
-## Benifits
+## Benefits
 
 At beginning, It seems overwhelming to use this library. But when the ViewModel becomes complex, it keeps the code clean / easy to maintain. And even super easy to unit test (see [this](examples/activity/src/test/java/semap/rx/viewmodel/examples/kotlin/LoginViewModelTests.kt) for example). The benefits of using it are.
 
@@ -183,11 +180,11 @@ Over the past few years, we’ve been developing a number of digital products us
  - [An example of fragments](examples/fragment) (with Navigation component from Android Architecture Components)
 
 
-# Advanced topic - ActionExecuteionMode
-By default, all the actions are executed in parallel, but you can override a viewModel functions to custom it.
+# Advanced topic - ActionExecutionMode
+Each action in ViewModel will become a observable of reducers. By default, those observables are executed in parallel, but you can override a viewModel functions to custom it.
 ```
 open fun executeMode(action: A): ActionExecutionMode {  
-    return ParallelDefault  
+    return ActionExecutionMode.ParallelDefault
 }
 ```
 The return value can be one of below.
@@ -198,9 +195,9 @@ The return value can be one of below.
  - **SwitchMap**
 
 For example, User execute three actions A1, A2 and then A3 really really quick. And those actions will modify the username of the state (via reducer)
-	A1: SetUsername("ab") 
-	A2: SetUsername("abc")
-	A3: SetUsername("abcd")
+	A1("ab") 
+	A2("abc")
+	A3("abcd")
 
 ### ParallelDefault
 This is the default execution mode. A1,  A2, A3 will be executed in parallel, but the ViewModel will keep the order for their reducers (the function that modify the state). So the username in the state will be set to "ab" first and then set to "abc", and finally "abcd", no matter the speed of those actions.

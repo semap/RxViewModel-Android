@@ -146,7 +146,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
     /**
      * This is the method to tell the RxViewModel "how to change the current state" for a given action.
      * @param action the action needed to be executed
-     * @return the Reducer (how to change the current state)
+     * @return the Observable of Reducers (how to change the current state). If it returns null, or an empty observable,
+     * it means the given action does not change the state.
      */
     abstract fun createReducerObservable(action: A): Observable<Reducer<S>>?
 
