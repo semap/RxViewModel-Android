@@ -44,14 +44,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
     val loadingObservable: Observable<Boolean> by lazy {
         loadingCount
                 .observeOn(defaultScheduler())
-                .scan { x, y -> x + y }
-                .map { count -> count > 0 }
-                .startWith(false)
-                .distinctUntilChanged()
-                .withLatestFrom(stateObservable,
-                        BiFunction<Boolean, S, Boolean> { b, _ -> b })
-                .replay(1)
-                .autoConnect()
+                .map { it.second }
+                .toBooleanObservable()
     }
 
     /**
@@ -106,7 +100,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
      */
     private val stateBehaviorSubject = BehaviorSubject.create<S>()
     private val errorSubject = PublishSubject.create<ActionAndError<A>>().toSerialized()
-    private val loadingCount = ReplaySubject.create<Int>().toSerialized()
+    private val loadingCount = ReplaySubject.create<Pair<A, Int>>().toSerialized()
     private val actionOnNextSubject = PublishSubject.create<ActionAndState<A, S>>().toSerialized()
     private val actionOnCompleteSubject = PublishSubject.create<ActionAndState<A, S>>().toSerialized()
     private val wrapperObservable: Observable<AnsWrapper> by lazy {
@@ -226,33 +220,78 @@ abstract class RxViewModel<A, S>: ViewModel() {
     }
 
     fun <T: A> actionOnNextObservable(clazz: Class<T>): Observable<T> {
+        return actionOnNextObservable { clazz.isInstance(it) }
+                .cast(clazz)
+    }
+
+    fun actionOnNextObservable(predicate: (A) -> Boolean): Observable<A> {
         return this.actionOnNextObservable
                 .map { it.action }
-                .ofType(clazz)
+                .filter { predicate(it) }
     }
 
     fun <T: A, R> actionOnNextObservable(clazz: Class<T>, mapper: (S) -> R?): Observable<R> {
+        return actionOnNextObservable({ clazz.isInstance(it) } , mapper)
+    }
+
+    fun <R> actionOnNextObservable(predicate: (A) -> Boolean, mapper: (S) -> R?): Observable<R> {
         return this.actionOnNextObservable
-                .filter { clazz.isInstance(it.action) }
+                .filter { predicate(it.action) }
                 .skipNull { mapper.invoke(it.state) }
     }
 
     fun <T: A> actionOnCompleteObservable(clazz: Class<T>): Observable<T> {
+        return actionOnCompleteObservable { clazz.isInstance(it) }
+                .cast(clazz)
+    }
+
+    fun actionOnCompleteObservable(predicate: (A) -> Boolean): Observable<A> {
         return this.actionOnCompleteObservable
                 .map { it.action }
-                .ofType(clazz)
+                .filter { predicate(it) }
     }
 
     fun <T: A, R> actionOnCompleteObservable(clazz: Class<T>, mapper: (S) -> R?): Observable<R> {
+        return actionOnCompleteObservable({ clazz.isInstance(it) }, mapper)
+    }
+
+    fun <R> actionOnCompleteObservable(predicate: (A) -> Boolean, mapper: (S) -> R?): Observable<R> {
         return this.actionOnCompleteObservable
-                .filter { clazz.isInstance(it.action) }
+                .filter { predicate(it.action) }
                 .skipNull { mapper.invoke(it.state) }
     }
 
     fun <T: A> actionErrorObservable(clazz: Class<T>): Observable<Throwable> {
+        return actionErrorObservable { clazz.isInstance(it) }
+    }
+
+    fun actionErrorObservable(predicate: (A) -> Boolean): Observable<Throwable> {
         return this.actionErrorObservable
-                .filter { clazz.isInstance(it.action) }
+                .filter { it.action?.let { a -> predicate(a) } ?: false }
                 .map { it.error }
+    }
+
+    fun <T: A> actionLoadingObservable(clazz: Class<T>): Observable<Boolean> {
+        return actionLoadingObservable { clazz.isInstance(it)  }
+    }
+
+    fun actionLoadingObservable(predicate: (A) -> Boolean): Observable<Boolean> {
+        return loadingCount
+                .observeOn(defaultScheduler())
+                .filter { predicate(it.first) }
+                .map { it.second }
+                .toBooleanObservable()
+    }
+
+    private fun Observable<Int>.toBooleanObservable() : Observable<Boolean> {
+        return this.scan { x, y -> x + y }
+                .map { count -> count > 0 }
+                .startWith(false)
+                .distinctUntilChanged()
+                .withLatestFrom(stateObservable,
+                        BiFunction<Boolean, S, Boolean> { b, _ -> b })
+                .replay(1)
+                .autoConnect()
     }
 
     private fun executeAndCombine(action: A, throwError: Boolean = false, deferredAction: Boolean = false): Observable<AnsWrapper> {
@@ -294,12 +333,12 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 }
                 .doOnSubscribe {
                     if (!deferredAction && showSpinner(action)) {
-                        loadingCount.onNext(1)
+                        loadingCount.onNext(Pair(action, 1))
                     }
                 }
                 .doFinally {
                     if (!deferredAction && showSpinner(action)) {
-                        loadingCount.onNext(-1)
+                        loadingCount.onNext(Pair(action, -1))
                     }
                 }
                 .subscribeOn(defaultScheduler())
