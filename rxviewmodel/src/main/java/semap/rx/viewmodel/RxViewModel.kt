@@ -158,6 +158,10 @@ abstract class RxViewModel<A, S>: ViewModel() {
         return ParallelDefault
     }
 
+    open fun ignoreAction(state: S, action: A): Boolean {
+        return false;
+    }
+
     /**
      * Default scheduler for observables
      * @return
@@ -271,11 +275,11 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .map { it.error }
     }
 
-    fun <T: A> actionLoadingObservable(clazz: Class<T>): Observable<Boolean> {
-        return actionLoadingObservable { clazz.isInstance(it)  }
+    fun <T: A> loadingObservable(clazz: Class<T>): Observable<Boolean> {
+        return loadingObservable { clazz.isInstance(it)  }
     }
 
-    fun actionLoadingObservable(predicate: (A) -> Boolean): Observable<Boolean> {
+    fun loadingObservable(predicate: (A) -> Boolean): Observable<Boolean> {
         return loadingCount
                 .observeOn(defaultScheduler())
                 .filter { predicate(it.first) }
@@ -300,6 +304,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     if (deferredAction) Observable.empty() else toReducerObservable(action),
                     BiFunction<A, Reducer<S>, Pair<A, Reducer<S>>> { a, m -> Pair(a, m) })
                 .observeOn(Schedulers.single())     // use Schedulers.single() to avoid race condition
+                .filter { !ignoreAction(currentState, it.first) }
                 .map { ActionAndState(it.first, it.second.invoke(currentState)) }
                 .doOnNext { stateBehaviorSubject.onNext(it.state) }
                 .observeOn(defaultScheduler())
