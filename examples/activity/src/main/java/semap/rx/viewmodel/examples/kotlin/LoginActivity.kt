@@ -8,10 +8,11 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
-import com.jakewharton.rxbinding3.view.clicks
-import com.jakewharton.rxbinding3.widget.textChanges
+import com.jakewharton.rxbinding4.view.clicks
+import com.jakewharton.rxbinding4.widget.textChanges
 import kotlinx.android.synthetic.main.activity_login.*
 import semap.rx.R
+import semap.rx.viewmodel.ActionExecutionMode
 import semap.rx.viewmodel.asLiveData
 import semap.rx.viewmodel.examples.kotlin.LoginAction.*
 import semap.rx.viewmodel.execute
@@ -36,16 +37,17 @@ class LoginActivity: AppCompatActivity() {
 
     private fun bindViewToViewModel() {
 
+        // execute the Login with ParallelDefer mode,
+        // the action will NOT be executed before previous ParallelDefault actions ( SetUsername and SetPassword) are done (state is updated).
         signInButton.clicks()
                 .map { Login }
                 .doAfterNext { this.closeKeyboard() }
-                .execute(viewModel, this)
+                .execute(viewModel, this, ActionExecutionMode.ParallelDefer)
 
         email.textChanges()
                 .skipInitialValue()
                 .map { SetUsername(it.toString()) }
                 .execute(viewModel, this)
-
 
         password.textChanges()
                 .skipInitialValue()

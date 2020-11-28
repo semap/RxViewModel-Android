@@ -28,7 +28,7 @@ import androidx.navigation.navGraphViewModels
 import androidx.recyclerview.widget.RecyclerView
 import com.example.android.navigationadvancedsample.R
 import com.example.android.navigationadvancedsample.databinding.FragmentLeaderboardBinding
-import com.jakewharton.rxbinding3.swiperefreshlayout.refreshes
+import com.jakewharton.rxbinding4.swiperefreshlayout.refreshes
 import semap.rx.viewmodel.asLiveData
 import semap.rx.viewmodel.observe
 

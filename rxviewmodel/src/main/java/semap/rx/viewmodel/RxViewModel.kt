@@ -1,15 +1,15 @@
 package semap.rx.viewmodel
 
 import androidx.lifecycle.ViewModel
-import io.reactivex.Notification
-import io.reactivex.Observable
-import io.reactivex.Scheduler
-import io.reactivex.functions.BiFunction
-import io.reactivex.schedulers.Schedulers
-import io.reactivex.subjects.BehaviorSubject
-import io.reactivex.subjects.PublishSubject
-import io.reactivex.subjects.ReplaySubject
-import io.reactivex.subjects.UnicastSubject
+import io.reactivex.rxjava3.core.Notification
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Scheduler
+import io.reactivex.rxjava3.functions.BiFunction
+import io.reactivex.rxjava3.schedulers.Schedulers
+import io.reactivex.rxjava3.subjects.BehaviorSubject
+import io.reactivex.rxjava3.subjects.PublishSubject
+import io.reactivex.rxjava3.subjects.ReplaySubject
+import io.reactivex.rxjava3.subjects.UnicastSubject
 import semap.rx.viewmodel.ActionExecutionMode.*
 
 abstract class RxViewModel<A, S>: ViewModel() {
@@ -110,7 +110,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
                 .concatMap { list ->
                     Observable.fromIterable(list)
                             .concatMap { executeAndCombine(it, true) }
-                            .onErrorResumeNext { _: Throwable -> Observable.empty<AnsWrapper>() }
+                            .onErrorResumeNext { Observable.empty<AnsWrapper>() }
                 }
         val concurrent = concurrentActionSubject
                 .observeOn(scheduler)
@@ -148,18 +148,10 @@ abstract class RxViewModel<A, S>: ViewModel() {
     /**
      *
      * @param action
-     * @return ture if the app needs to show the spinner for the action.
+     * @return true if the app needs to show the spinner for the action.
      */
     open fun showSpinner(action: A): Boolean {
         return false
-    }
-
-    open fun executeMode(action: A): ActionExecutionMode {
-        return ParallelDefault
-    }
-
-    open fun ignoreAction(state: S, action: A): Boolean {
-        return false;
     }
 
     /**
@@ -191,8 +183,8 @@ abstract class RxViewModel<A, S>: ViewModel() {
      * Execute an action.
      * @param action
      */
-    fun execute(action: A) {
-        execute(action, executeMode(action))
+    inline fun execute(action: A) {
+        execute(action, ParallelDefault)
     }
 
     /**
@@ -290,7 +282,7 @@ abstract class RxViewModel<A, S>: ViewModel() {
     private fun Observable<Int>.toBooleanObservable() : Observable<Boolean> {
         return this.scan { x, y -> x + y }
                 .map { count -> count > 0 }
-                .startWith(false)
+                .startWithItem(false)
                 .distinctUntilChanged()
                 .withLatestFrom(stateObservable,
                         BiFunction<Boolean, S, Boolean> { b, _ -> b })
@@ -304,7 +296,6 @@ abstract class RxViewModel<A, S>: ViewModel() {
                     if (deferredAction) Observable.empty() else toReducerObservable(action),
                     BiFunction<A, Reducer<S>, Pair<A, Reducer<S>>> { a, m -> Pair(a, m) })
                 .observeOn(Schedulers.single())     // use Schedulers.single() to avoid race condition
-                .filter { !ignoreAction(currentState, it.first) }
                 .map { ActionAndState(it.first, it.second.invoke(currentState)) }
                 .doOnNext { stateBehaviorSubject.onNext(it.state) }
                 .observeOn(defaultScheduler())

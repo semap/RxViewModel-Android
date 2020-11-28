@@ -1,8 +1,6 @@
 package semap.rx.viewmodel.examples.kotlin
 
-import io.reactivex.Observable
-import semap.rx.viewmodel.ActionExecutionMode
-import semap.rx.viewmodel.ActionExecutionMode.*
+import io.reactivex.rxjava3.core.Observable
 import semap.rx.viewmodel.RxViewModel
 import semap.rx.viewmodel.Reducer
 import semap.rx.viewmodel.examples.LoginService
@@ -46,13 +44,6 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
         }
     }
 
-    override fun executeMode(action: LoginAction): ActionExecutionMode {
-        return when (action) {
-            is Login -> ParallelDefer
-            else -> ParallelDefault
-        }
-    }
-
     override fun createInitialState(): LoginState =
             LoginState()
 
@@ -60,5 +51,4 @@ class LoginViewModel(private val loginService: LoginService = LoginService()): R
         get() = stateObservable
                 .map { it.isFormValid }
                 .distinctUntilChanged()
-
 }

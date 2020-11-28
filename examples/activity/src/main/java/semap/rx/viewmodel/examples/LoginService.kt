@@ -1,6 +1,6 @@
 package semap.rx.viewmodel.examples
 
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Observable
 import java.util.concurrent.TimeUnit
 import javax.security.auth.login.LoginException
 
