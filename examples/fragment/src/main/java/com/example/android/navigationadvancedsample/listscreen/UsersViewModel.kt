@@ -4,7 +4,7 @@ import android.view.View
 import com.example.android.navigationadvancedsample.R
 import com.example.android.navigationadvancedsample.listscreen.UsersAction.LoadUsers
 import com.example.android.navigationadvancedsample.listscreen.UsersAction.SelectUser
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Observable
 import semap.rx.viewmodel.Reducer
 import semap.rx.viewmodel.RxViewModel
 import semap.rx.viewmodel.skipNull

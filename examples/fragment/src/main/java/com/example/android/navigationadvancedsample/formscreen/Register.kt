@@ -24,8 +24,8 @@ import androidx.navigation.navGraphViewModels
 import com.example.android.navigationadvancedsample.R
 import com.example.android.navigationadvancedsample.databinding.FragmentRegisterBinding
 import com.example.android.navigationadvancedsample.formscreen.RegisterAction.*
-import com.jakewharton.rxbinding3.view.clicks
-import com.jakewharton.rxbinding3.widget.textChanges
+import com.jakewharton.rxbinding4.view.clicks
+import com.jakewharton.rxbinding4.widget.textChanges
 import semap.rx.viewmodel.execute
 import semap.rx.viewmodel.observe
 import java.util.concurrent.TimeUnit

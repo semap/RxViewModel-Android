@@ -1,6 +1,6 @@
 package semap.rx.viewmodel
 
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Observable
 import org.hamcrest.CoreMatchers.*
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Rule

@@ -1,7 +1,7 @@
 package semap.rx.viewmodel.examples.kotlin
 
 import androidx.test.espresso.matcher.ViewMatchers.assertThat
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Observable
 import org.hamcrest.CoreMatchers.`is`
 import org.junit.Rule
 import org.junit.Test

@@ -13,7 +13,7 @@ The concept is simple, it has 4 major parts
 ## Use the Library
 Add the library below to your app's build.gradle.  
 ```
-	implementation 'semap.rx:rxviewmodel:1.1.4'
+	implementation 'semap.rx:rxviewmodel:1.2.0'
 ```
 
 ##  Example of How to Use It

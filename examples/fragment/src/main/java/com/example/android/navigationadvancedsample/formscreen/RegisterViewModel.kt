@@ -2,7 +2,7 @@ package com.example.android.navigationadvancedsample.formscreen
 
 import android.view.View
 import com.example.android.navigationadvancedsample.formscreen.RegisterAction.*
-import io.reactivex.Observable
+import io.reactivex.rxjava3.core.Observable
 import semap.rx.viewmodel.Reducer
 import semap.rx.viewmodel.RxViewModel
 import java.util.concurrent.TimeUnit
