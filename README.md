@@ -17,6 +17,8 @@ Add the library below to your app's build.gradle.
 ```
 
 ##  Example of How to Use It
+[This is a simple Android app](https://github.com/semap/RxViewModel-Simple-Example/) using RxViewModel.
+
 Below are the steps to use it. We take the login as an example. User needs to input username (min length 5) and password (min length 3) to login.
 ### State
 Since we allow user to input username and password. So we can define a data class below.
@@ -236,6 +238,5 @@ The history of username: "ab" -> "abc"
  # More information 
 
  - You can read [this article](https://medium.com/aeqdigital/reactive-programming-with-mvvm-for-mobile-apps-9d5476f9ecc7) to have a deeper look.
- - [The full login activity example](examples/activity)
- - [An example of fragments](examples/fragment) (with Navigation component from Android Architecture Components)
+ - [The full login activity example](https://github.com/semap/RxViewModel-Simple-Example/)
 
